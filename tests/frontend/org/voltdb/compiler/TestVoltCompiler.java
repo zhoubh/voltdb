@@ -2523,10 +2523,17 @@ public class TestVoltCompiler extends TestCase {
     {
         // Test MatView.
         String ddl;
+        final VoltCompiler compiler = new VoltCompiler();
 
+        // Subquery is replaced with a simple select
         ddl = "create table t(id integer not null, num integer, wage integer);\n" +
                 "create view my_view1 (num, total) " +
                 "as select num, count(*) from (select num from t) subt group by num; \n";
+        assertTrue(compileDDL(ddl, compiler));
+
+        ddl = "create table t(id integer not null, num integer, wage integer);\n" +
+                "create view my_view1 (num, total) " +
+                "as select num, count(*) from (select num from t limit 5) subt group by num; \n";
         checkDDLErrorMessage(ddl, "Materialized view \"MY_VIEW1\" with subquery sources is not supported.");
 
         ddl = "create table t(id integer not null, num integer, wage integer);\n" +
