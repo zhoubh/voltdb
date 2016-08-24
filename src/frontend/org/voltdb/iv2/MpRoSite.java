@@ -54,6 +54,7 @@ import org.voltdb.dtxn.SiteTracker;
 import org.voltdb.dtxn.TransactionState;
 import org.voltdb.dtxn.UndoAction;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.messaging.FastDeserializer;
 
 /**
  * An implementation of Site which provides only the functionality
@@ -534,7 +535,7 @@ public class MpRoSite implements Runnable, SiteProcedureConnection
     }
 
     @Override
-    public VoltTable[] executePlanFragments(
+    public FastDeserializer executePlanFragments(
             int numFragmentIds,
             long[] planFragmentIds,
             long[] inputDepIds,

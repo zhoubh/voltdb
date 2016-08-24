@@ -510,8 +510,8 @@ int VoltDBEngine::executePlanFragment(int64_t planfragmentId,
     // write dirty-ness of the batch and number of dependencies output to the FRONT of
     // the result buffer
     if (last) {
-        m_resultOutput.writeIntAt(m_startOfResultBuffer, static_cast<int32_t>(m_resultOutput.position() - m_startOfResultBuffer) - sizeof(int32_t) - sizeof(int8_t));
-        m_resultOutput.writeBoolAt(m_startOfResultBuffer + sizeof(int32_t), m_dirtyFragmentBatch);
+        m_resultOutput.writeBoolAt(m_startOfResultBuffer, m_dirtyFragmentBatch);
+        m_resultOutput.writeIntAt(m_startOfResultBuffer, static_cast<int32_t>(m_resultOutput.position() - m_startOfResultBuffer) - sizeof(int32_t) - sizeof(int8_t) + 1);
     }
 
     VOLT_DEBUG("Finished executing.");
@@ -1425,13 +1425,17 @@ int VoltDBEngine::getResultsSize() const {
 }
 
 void VoltDBEngine::setBuffers(char *parameterBuffer, int parameterBuffercapacity,
-        char *resultBuffer, int resultBufferCapacity,
+        char *firstResultBuffer, int firstResultBufferCapacity,
+        char *finalResultBuffer, int finalResultBufferCapacity,
         char *exceptionBuffer, int exceptionBufferCapacity) {
     m_parameterBuffer = parameterBuffer;
     m_parameterBufferCapacity = parameterBuffercapacity;
 
-    m_reusedResultBuffer = resultBuffer;
-    m_reusedResultCapacity = resultBufferCapacity;
+    m_firstReusedResultBuffer = firstResultBuffer;
+    m_firstReusedResultCapacity = firstResultBufferCapacity;
+
+    m_finalReusedResultBuffer = finalResultBuffer;
+    m_finalReusedResultCapacity = finalResultBufferCapacity;
 
     m_exceptionBuffer = exceptionBuffer;
     m_exceptionBufferCapacity = exceptionBufferCapacity;

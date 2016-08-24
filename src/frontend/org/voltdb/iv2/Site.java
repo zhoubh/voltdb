@@ -92,19 +92,19 @@ import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.CompleteTransactionMessage;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.Iv2InitiateTaskMessage;
 import org.voltdb.rejoin.TaskLog;
 import org.voltdb.sysprocs.SysProcFragmentId;
-import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.CompressionService;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.MinimumRatioMaintainer;
 
+import vanilla.java.affinity.impl.PosixJNAAffinity;
+
 import com.google_voltpatches.common.base.Charsets;
 import com.google_voltpatches.common.base.Preconditions;
-
-import vanilla.java.affinity.impl.PosixJNAAffinity;
 
 public class Site implements Runnable, SiteProcedureConnection, SiteSnapshotConnection
 {
@@ -1367,16 +1367,16 @@ public class Site implements Runnable, SiteProcedureConnection, SiteSnapshotConn
     }
 
     @Override
-    public VoltTable[] executePlanFragments(int numFragmentIds,
-                                            long[] planFragmentIds,
-                                            long[] inputDepIds,
-                                            Object[] parameterSets,
-                                            String[] sqlTexts,
-                                            long txnId,
-                                            long spHandle,
-                                            long uniqueId,
-                                            boolean readOnly)
-            throws EEException
+    public FastDeserializer executePlanFragments(
+            int numFragmentIds,
+            long[] planFragmentIds,
+            long[] inputDepIds,
+            Object[] parameterSets,
+            String[] sqlTexts,
+            long txnId,
+            long spHandle,
+            long uniqueId,
+            boolean readOnly) throws EEException
     {
         return m_ee.executePlanFragments(
                 numFragmentIds,

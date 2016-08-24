@@ -555,16 +555,17 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     }
 
     /** Run multiple plan fragments */
-    public VoltTable[] executePlanFragments(int numFragmentIds,
-                                            long[] planFragmentIds,
-                                            long[] inputDepIds,
-                                            Object[] parameterSets,
-                                            String[] sqlTexts,
-                                            long txnId,
-                                            long spHandle,
-                                            long lastCommittedSpHandle,
-                                            long uniqueId,
-                                            long undoQuantumToken) throws EEException
+    public FastDeserializer executePlanFragments(
+            int numFragmentIds,
+            long[] planFragmentIds,
+            long[] inputDepIds,
+            Object[] parameterSets,
+            String[] sqlTexts,
+            long txnId,
+            long spHandle,
+            long lastCommittedSpHandle,
+            long uniqueId,
+            long undoQuantumToken) throws EEException
     {
         try {
             // For now, re-transform undoQuantumToken to readOnly. Redundancy work in site.executePlanFragments()
@@ -574,9 +575,9 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             m_startTime = 0;
             m_logDuration = INITIAL_LOG_DURATION;
             m_sqlTexts = sqlTexts;
-
-            VoltTable[] results = coreExecutePlanFragments(numFragmentIds, planFragmentIds, inputDepIds,
-                    parameterSets, txnId, spHandle, lastCommittedSpHandle, uniqueId, undoQuantumToken);
+            int bufferHint = Math.min(m_currentBatchIndex,1);
+            FastDeserializer results = coreExecutePlanFragments(bufferHint, numFragmentIds, planFragmentIds,
+                    inputDepIds, parameterSets, txnId, spHandle, lastCommittedSpHandle, uniqueId, undoQuantumToken);
             m_plannerStats.updateEECacheStats(m_eeCacheSize, numFragmentIds - m_cacheMisses,
                     m_cacheMisses, m_partitionId);
             return results;
@@ -591,15 +592,17 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         }
     }
 
-    protected abstract VoltTable[] coreExecutePlanFragments(int numFragmentIds,
-                                                            long[] planFragmentIds,
-                                                            long[] inputDepIds,
-                                                            Object[] parameterSets,
-                                                            long txnId,
-                                                            long spHandle,
-                                                            long lastCommittedSpHandle,
-                                                            long uniqueId,
-                                                            long undoQuantumToken) throws EEException;
+    protected abstract FastDeserializer coreExecutePlanFragments(
+            int bufferHint,
+            int numFragmentIds,
+            long[] planFragmentIds,
+            long[] inputDepIds,
+            Object[] parameterSets,
+            long txnId,
+            long spHandle,
+            long lastCommittedSpHandle,
+            long uniqueId,
+            long undoQuantumToken) throws EEException;
 
     /** Used for test code only (AFAIK jhugg) */
     public abstract VoltTable serializeTable(int tableId) throws EEException;
@@ -788,14 +791,17 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param pointer
      * @param parameter_buffer
      * @param parameter_buffer_size
-     * @param resultBuffer
-     * @param result_buffer_size
+     * @param firstResultBuffer
+     * @param first_result_buffer_size
+     * @param finalResultBuffer
+     * @param final_result_buffer_size
      * @param exceptionBuffer
      * @param exception_buffer_size
      * @return error code
      */
     protected native int nativeSetBuffers(long pointer, ByteBuffer parameter_buffer, int parameter_buffer_size,
-                                          ByteBuffer resultBuffer, int result_buffer_size,
+                                          ByteBuffer firstResultBuffer, int first_result_buffer_size,
+                                          ByteBuffer finalResultBuffer, int final_result_buffer_size,
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
 
     /**
@@ -842,6 +848,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     protected native int nativeExecutePlanFragments(
             long pointer,
+            int bufferHint,
             int numFragments,
             long[] planFragmentIds,
             long[] inputDepIds,
