@@ -1835,6 +1835,7 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
         try {
             ZooKeeper zk = m_messenger.getZK();
             byte deploymentBytes[] = null;
+            byte originalDeploymentBytes[] = null;
 
             try {
                 deploymentBytes = org.voltcore.utils.CoreUtils.urlToBytes(m_config.m_pathToDeployment);
@@ -1842,6 +1843,7 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 //Let us get bytes from ZK
             }
             DeploymentType deployment = null;
+            DeploymentType originalDeployment = null;
             try {
                 if (deploymentBytes != null) {
                     CatalogUtil.writeCatalogToZK(zk,
@@ -1853,6 +1855,8 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                                             // this to be of zero length until we have a real catalog.
                             null,
                             deploymentBytes);
+                    originalDeployment = CatalogUtil.getDeployment(new ByteArrayInputStream(deploymentBytes));
+                    originalDeploymentBytes = deploymentBytes;
                     hostLog.info("URL of deployment: " + m_config.m_pathToDeployment);
                 } else {
                     CatalogAndIds catalogStuff = CatalogUtil.getCatalogFromZK(zk);
@@ -1904,6 +1908,7 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 VoltDB.crashLocalVoltDB("Not a valid XML deployment file at URL: "
                         + m_config.m_pathToDeployment, false, null);
             }
+
             /*
              * Check for invalid deployment file settings (enterprise-only) in the community edition.
              * Trick here is to print out all applicable problems and then stop, rather than stopping
@@ -2040,6 +2045,11 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 // Any other non-enterprise deployment errors will be caught and handled here
                 // (such as <= 0 host count)
                 VoltDB.crashLocalVoltDB(result);
+            }
+
+            if (originalDeployment != null &&
+                    deployment.getCluster().getSitesperhost() != originalDeployment.getCluster().getSitesperhost()) {
+                deploymentBytes = originalDeploymentBytes;
             }
 
             m_catalogContext = new CatalogContext(
