@@ -280,8 +280,7 @@ public class RepairLog
 
         int ofTotal = items.size() + 1;
         tmLog.debug("Responding with " + ofTotal + " repair log parts.");
-        List<Iv2RepairLogResponseMessage> responses =
-            new LinkedList<Iv2RepairLogResponseMessage>();
+        List<Iv2RepairLogResponseMessage> responses = new LinkedList<Iv2RepairLogResponseMessage>();
 
         // this constructor sets its sequence no to 0 as ack
         // messages are first in the sequence
@@ -294,7 +293,7 @@ public class RepairLog
                         TheHashinator.getCurrentVersionedConfigCooked());
         responses.add(hheader);
 
-        int seq = responses.size();
+        int seq = responses.size(); // = 1, as the first sequence
 
         Iterator<Item> itemator = items.iterator();
         while (itemator.hasNext()) {
