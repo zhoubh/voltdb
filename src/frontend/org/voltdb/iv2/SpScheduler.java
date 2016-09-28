@@ -62,6 +62,7 @@ import org.voltdb.messaging.Iv2LogFaultMessage;
 import org.voltdb.messaging.MultiPartitionParticipantMessage;
 import org.voltdb.messaging.RepairLogTruncationMessage;
 
+import com.google_voltpatches.common.base.Throwables;
 import com.google_voltpatches.common.primitives.Ints;
 import com.google_voltpatches.common.primitives.Longs;
 import com.google_voltpatches.common.util.concurrent.ListenableFuture;
@@ -1264,13 +1265,28 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
         return m_repairLogTruncationHandle;
     }
 
+    private final List<Exception> m_ll = new LinkedList<>();
     private void setRepairLogTruncationHandle(long newHandle)
     {
         if (newHandle < m_repairLogTruncationHandle) {
-            throw new RuntimeException("Updating truncation point from " +
+            hostLog.error("Is leader: " + m_isLeader + ", Updating truncation point from " +
                     TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
-                    "to" + TxnEgo.txnIdToString(newHandle));
+                    " to " + TxnEgo.txnIdToString(newHandle)
+                    + ".\nDump site state......"
+                    );
+            handleDumpMessage();
+            for (Exception e : m_ll) {
+                hostLog.error(Throwables.getStackTraceAsString(e));
+            }
+            throw new RuntimeException("[ERROR-Xin] Updating truncation point from " +
+                    TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
+                    " to " + TxnEgo.txnIdToString(newHandle));
         }
+
+        // TODO(xin): DELETE this tracking methods before release.
+        m_ll.add(new RuntimeException("[TRACE-Xin] Updating truncation point from " +
+                TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
+                " to " + TxnEgo.txnIdToString(newHandle)));
 
         if (newHandle > m_repairLogTruncationHandle) {
             m_repairLogTruncationHandle = newHandle;
