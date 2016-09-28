@@ -1282,9 +1282,9 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
                 hostLog.error(Throwables.getStackTraceAsString(e));
             }
 
-            throw new RuntimeException("[ERROR-Xin] Updating truncation point from " +
+            VoltDB.crashGlobalVoltDB("[ERROR-Xin] Updating truncation point from " +
                     TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
-                    " to " + TxnEgo.txnIdToString(newHandle));
+                    " to " + TxnEgo.txnIdToString(newHandle), true, null);
         }
 
         // TODO(xin): DELETE this tracking methods before release.
