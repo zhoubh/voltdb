@@ -279,7 +279,7 @@ public class RepairLog
         Collections.sort(items, m_handleComparator);
 
         int ofTotal = items.size() + 1;
-        tmLog.debug("Responding with " + ofTotal + " repair log parts.");
+        tmLog.warn("Responding with " + ofTotal + " repair log parts.");
         List<Iv2RepairLogResponseMessage> responses =
             new LinkedList<Iv2RepairLogResponseMessage>();
 

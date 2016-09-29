@@ -159,14 +159,14 @@ public class SpPromoteAlgo implements RepairAlgo
         if (message instanceof Iv2RepairLogResponseMessage) {
             Iv2RepairLogResponseMessage response = (Iv2RepairLogResponseMessage)message;
             if (response.getRequestId() != m_requestId) {
-                tmLog.debug(m_whoami + "rejecting stale repair response."
+                tmLog.warn(m_whoami + "rejecting stale repair response."
                           + " Current request id is: " + m_requestId
                           + " Received response for request id: " + response.getRequestId());
                 return;
             }
             ReplicaRepairStruct rrs = m_replicaRepairStructs.get(response.m_sourceHSId);
             if (rrs.m_expectedResponses < 0) {
-                tmLog.debug(m_whoami + "collecting " + response.getOfTotal()
+                tmLog.warn(m_whoami + "collecting " + response.getOfTotal()
                           + " repair log entries from "
                           + CoreUtils.hsIdToString(response.m_sourceHSId));
             }
@@ -177,13 +177,11 @@ public class SpPromoteAlgo implements RepairAlgo
 
             if (response.getPayload() != null) {
                 m_repairLogUnion.add(response);
-                if (tmLog.isTraceEnabled()) {
-                    tmLog.trace(m_whoami + " collected from " + CoreUtils.hsIdToString(response.m_sourceHSId) +
-                            ", message: " + response.getPayload());
-                }
+                tmLog.warn(m_whoami + " collected from " + CoreUtils.hsIdToString(response.m_sourceHSId) +
+                        ", message: " + response.getPayload());
             }
             if (rrs.update(response)) {
-                tmLog.debug(m_whoami + "collected " + rrs.m_receivedResponses
+                tmLog.warn(m_whoami + "collected " + rrs.m_receivedResponses
                           + " responses for " + rrs.m_expectedResponses
                           + " repair log entries from " + CoreUtils.hsIdToString(response.m_sourceHSId));
                 if (areRepairLogsComplete()) {
@@ -211,32 +209,30 @@ public class SpPromoteAlgo implements RepairAlgo
         // currently). If cancelled and the last repair message arrives, don't send
         // out corrections!
         if (this.m_promotionResult.isCancelled()) {
-            tmLog.debug(m_whoami + "Skipping repair message creation for cancelled Term.");
+            tmLog.warn(m_whoami + "Skipping repair message creation for cancelled Term.");
             return;
         }
 
         int queued = 0;
-        tmLog.debug(m_whoami + "received all repair logs and is repairing surviving replicas.");
+        tmLog.warn(m_whoami + "received all repair logs and is repairing surviving replicas.");
         for (Iv2RepairLogResponseMessage li : m_repairLogUnion) {
             List<Long> needsRepair = new ArrayList<Long>(5);
             for (Entry<Long, ReplicaRepairStruct> entry : m_replicaRepairStructs.entrySet()) {
                 if  (entry.getValue().needs(li.getHandle())) {
                     ++queued;
-                    tmLog.debug(m_whoami + "repairing " + CoreUtils.hsIdToString(entry.getKey()) +
+                    tmLog.warn(m_whoami + "repairing " + CoreUtils.hsIdToString(entry.getKey()) +
                             ". Max seen " + entry.getValue().m_maxSpHandleSeen + ". Repairing with " +
                             li.getHandle());
                     needsRepair.add(entry.getKey());
                 }
             }
             if (!needsRepair.isEmpty()) {
-                if (tmLog.isTraceEnabled()) {
-                    tmLog.trace(m_whoami + "repairing: " + CoreUtils.hsIdCollectionToString(needsRepair) +
-                            " with message: " + li.getPayload());
-                }
+                tmLog.warn(m_whoami + "repairing: " + CoreUtils.hsIdCollectionToString(needsRepair) +
+                        " with message: " + li.getPayload());
                 m_mailbox.repairReplicasWith(needsRepair, li.getPayload());
             }
         }
-        tmLog.debug(m_whoami + "finished queuing " + queued + " replica repair messages.");
+        tmLog.warn(m_whoami + "finished queuing " + queued + " replica repair messages.");
 
         m_promotionResult.set(new RepairResult(m_maxSeenTxnId));
     }

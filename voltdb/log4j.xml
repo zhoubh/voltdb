@@ -72,9 +72,9 @@
         <level value="INFO"/>
     </logger -->
 
-    <!-- logger name="IV2TRACE">
+    <logger name="IV2TRACE">
         <level value="TRACE"/>
-    </logger -->
+    </logger>
 
     <!-- logger name="IV2QUEUETRACE">
         <level value="TRACE"/>

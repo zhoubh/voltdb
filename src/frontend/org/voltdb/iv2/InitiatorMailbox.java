@@ -38,9 +38,9 @@ import org.voltdb.messaging.Iv2InitiateTaskMessage;
 import org.voltdb.messaging.Iv2RepairLogRequestMessage;
 import org.voltdb.messaging.Iv2RepairLogResponseMessage;
 import org.voltdb.messaging.RejoinMessage;
+import org.voltdb.messaging.RepairLogTruncationMessage;
 
 import com.google_voltpatches.common.base.Supplier;
-import org.voltdb.messaging.RepairLogTruncationMessage;
 
 /**
  * InitiatorMailbox accepts initiator work and proxies it to the
@@ -363,12 +363,16 @@ public class InitiatorMailbox implements Mailbox
         List<Iv2RepairLogResponseMessage> logs = m_repairLog.contents(req.getRequestId(),
                 req.isMPIRequest());
 
-        tmLog.debug(""
+        tmLog.warn(""
             + CoreUtils.hsIdToString(getHSId())
             + " handling repair log request id " + req.getRequestId()
             + " for " + CoreUtils.hsIdToString(message.m_sourceHSId) + ". ");
 
         for (Iv2RepairLogResponseMessage log : logs) {
+            tmLog.warn("" + CoreUtils.hsIdToString(getHSId())
+                + " Iv2RepairLogResponseMsg sent to HSId " + CoreUtils.hsIdToString(message.m_sourceHSId)
+                + ": " + log.toString()
+                    );
             send(message.m_sourceHSId, log);
         }
     }
