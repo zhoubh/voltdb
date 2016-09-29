@@ -375,21 +375,33 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     public void deliver(VoltMessage message)
     {
         if (message instanceof Iv2InitiateTaskMessage) {
+            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
+                + ", Iv2 Init Msg: " + message);
             handleIv2InitiateTaskMessage((Iv2InitiateTaskMessage)message);
         }
         else if (message instanceof InitiateResponseMessage) {
+            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
+                + ", Init Resp Msg: " + message);
             handleInitiateResponseMessage((InitiateResponseMessage)message);
         }
         else if (message instanceof FragmentTaskMessage) {
+            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
+                + ", Frag Task Msg: " + message);
             handleFragmentTaskMessage((FragmentTaskMessage)message);
         }
         else if (message instanceof FragmentResponseMessage) {
+            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
+                + ", Frag Resp Msg: " + message);
             handleFragmentResponseMessage((FragmentResponseMessage)message);
         }
         else if (message instanceof CompleteTransactionMessage) {
+            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
+                + ", Complete txn Msg: " + message);
             handleCompleteTransactionMessage((CompleteTransactionMessage)message);
         }
         else if (message instanceof CompleteTransactionResponseMessage) {
+            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
+                + ", Complete txn Resp Msg: " + message);
             handleCompleteTransactionResponseMessage((CompleteTransactionResponseMessage) message);
         }
         else if (message instanceof BorrowTaskMessage) {

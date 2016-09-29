@@ -232,7 +232,8 @@ public class SpPromoteAlgo implements RepairAlgo
                 m_mailbox.repairReplicasWith(needsRepair, li.getPayload());
             }
         }
-        tmLog.warn(m_whoami + "finished queuing " + queued + " replica repair messages.");
+        tmLog.warn(m_whoami + "finished queuing " + queued + " replica repair messages."
+                + " Max seen Txn id: " + TxnEgo.txnIdToString(m_maxSeenTxnId));
 
         m_promotionResult.set(new RepairResult(m_maxSeenTxnId));
     }
