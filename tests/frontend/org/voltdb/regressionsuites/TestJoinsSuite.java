@@ -381,6 +381,7 @@ public class TestJoinsSuite extends RegressionSuite {
         }
 
         anotherJoinOp = JOIN_OPS[0];
+
         query = "SELECT * FROM R4 JOIN R2 " +
                 "ON R4.A " + joinOp + " R2.A " +
                 "AND R4.G " + anotherJoinOp + " R2.C;";
@@ -392,6 +393,7 @@ public class TestJoinsSuite extends RegressionSuite {
         }
 
         anotherJoinOp = JOIN_OPS[1];
+
         query = "SELECT * FROM R4 JOIN R2 " +
                 "ON R4.A " + joinOp + " R2.A " +
                 "AND R4.G " + anotherJoinOp + " R2.C;";
@@ -419,12 +421,14 @@ public class TestJoinsSuite extends RegressionSuite {
         }
 
         anotherJoinOp = JOIN_OPS[0];
+
         query = "SELECT * FROM P4 JOIN R2 " +
                         "ON P4.A " + joinOp + " R2.A " +
                         "AND P4.G " + anotherJoinOp + " R2.C;";
         validateRowCount(client, query, 1);
 
         anotherJoinOp = JOIN_OPS[1];
+
         query = "SELECT * FROM P4 JOIN R2 " +
                 "ON P4.A " + joinOp + " R2.A " +
                 "AND P4.G " + anotherJoinOp + " R2.C;";
