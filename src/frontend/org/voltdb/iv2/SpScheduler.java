@@ -1270,14 +1270,26 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     private void setRepairLogTruncationHandle(long newHandle)
     {
         if (newHandle < m_repairLogTruncationHandle) {
-            hostLog.error("Is leader: " + m_isLeader + ", Updating truncation point from " +
+            hostLog.error("Is leader: " + m_isLeader + ", xin-Updating truncation point from " +
                     TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
                     " to " + TxnEgo.txnIdToString(newHandle)
                     + ".\nDump site state......"
                     );
             handleDumpMessage();
+
+            m_ll.add(new RuntimeException("[Error-Xin] is leader: " + m_isLeader + ", xin-Updating truncation point from " +
+                    TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
+                    " to " + TxnEgo.txnIdToString(newHandle)));
+
             for (Exception e : m_ll) {
-                hostLog.error(Throwables.getStackTraceAsString(e));
+                hostLog.warn(Throwables.getStackTraceAsString(e));
+            }
+
+            try {
+                hostLog.warn("sleep for 30 seconds before crashing...");
+                Thread.sleep(30*1000);
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
             }
 
             VoltDB.crashGlobalVoltDB("[ERROR-Xin] Updating truncation point from " +
@@ -1286,7 +1298,7 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
         }
 
         // TODO(xin): DELETE this tracking methods before release.
-        m_ll.add(new RuntimeException("[TRACE-Xin] Updating truncation point from " +
+        m_ll.add(new RuntimeException("[TRACE-Xin] is leader: " + m_isLeader + ", Updating truncation point from " +
                 TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
                 " to " + TxnEgo.txnIdToString(newHandle)));
 
