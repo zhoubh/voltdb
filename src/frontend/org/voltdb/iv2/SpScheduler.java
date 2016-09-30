@@ -375,33 +375,21 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     public void deliver(VoltMessage message)
     {
         if (message instanceof Iv2InitiateTaskMessage) {
-            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
-                + ", Iv2 Init Msg: " + message);
             handleIv2InitiateTaskMessage((Iv2InitiateTaskMessage)message);
         }
         else if (message instanceof InitiateResponseMessage) {
-            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
-                + ", Init Resp Msg: " + message);
             handleInitiateResponseMessage((InitiateResponseMessage)message);
         }
         else if (message instanceof FragmentTaskMessage) {
-            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
-                + ", Frag Task Msg: " + message);
             handleFragmentTaskMessage((FragmentTaskMessage)message);
         }
         else if (message instanceof FragmentResponseMessage) {
-            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
-                + ", Frag Resp Msg: " + message);
             handleFragmentResponseMessage((FragmentResponseMessage)message);
         }
         else if (message instanceof CompleteTransactionMessage) {
-            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
-                + ", Complete txn Msg: " + message);
             handleCompleteTransactionMessage((CompleteTransactionMessage)message);
         }
         else if (message instanceof CompleteTransactionResponseMessage) {
-            hostLog.warn("Current truncation handle: " + TxnEgo.txnIdToString(m_repairLogTruncationHandle)
-                + ", Complete txn Resp Msg: " + message);
             handleCompleteTransactionResponseMessage((CompleteTransactionResponseMessage) message);
         }
         else if (message instanceof BorrowTaskMessage) {
@@ -1055,41 +1043,24 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
 
     public void handleCompleteTransactionResponseMessage(CompleteTransactionResponseMessage msg)
     {
-        final DuplicateCounterKey duplicateCounterKey = new DuplicateCounterKey(msg.getTxnId(), msg.getSpHandle());
-        DuplicateCounter counter = m_duplicateCounters.get(duplicateCounterKey);
-        boolean txnDone = true;
-
         if (msg.isRestart()) {
-            // Don't mark txn done for restarts
-            txnDone = false;
+            return;
         }
 
-        if (counter != null) {
-            txnDone = counter.offer(msg) == DuplicateCounter.DONE;
+        final TransactionState txn = m_outstandingTxns.remove(msg.getTxnId());
+        if (txn == null) {
+            throw new RuntimeException("Complete txn response message state is null, message: " + msg.toString());
         }
 
-        if (txnDone) {
-            assert !msg.isRestart();
-            final TransactionState txn = m_outstandingTxns.remove(msg.getTxnId());
-            m_duplicateCounters.remove(duplicateCounterKey);
-
-            if (txn != null) {
-                // Set the truncation handle here instead of when processing
-                // FragmentResponseMessage to avoid letting replicas think a
-                // fragment is done before the MP txn is fully committed.
-                assert txn.isDone() : "Counter " + counter + ", leader " + m_isLeader + ", " + msg;
-                setRepairLogTruncationHandle(txn.m_spHandle);
-            }
+        if (txn != null) {
+            // Set the truncation handle here instead of when processing
+            // FragmentResponseMessage to avoid letting replicas think a
+            // fragment is done before the MP txn is fully committed.
+            setRepairLogTruncationHandle(txn.m_spHandle);
         }
 
         // The CompleteTransactionResponseMessage ends at the SPI. It is not
         // sent to the MPI because it doesn't care about it.
-        //
-        // The SPI uses this response message to track if all replicas have
-        // committed the transaction.
-        if (!m_isLeader) {
-            m_mailbox.send(msg.getSPIHSId(), msg);
-        }
     }
 
     /**
