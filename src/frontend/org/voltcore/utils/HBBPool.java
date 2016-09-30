@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package org.voltcore.utils;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
