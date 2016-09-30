@@ -1056,7 +1056,7 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             // Set the truncation handle here instead of when processing
             // FragmentResponseMessage to avoid letting replicas think a
             // fragment is done before the MP txn is fully committed.
-            setRepairLogTruncationHandle(txn.m_spHandle);
+            setRepairLogTruncationHandle(txn.m_spHandle, false);
         }
 
         // The CompleteTransactionResponseMessage ends at the SPI. It is not
@@ -1250,7 +1250,13 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     }
 
     private final List<Exception> m_ll = new LinkedList<>();
+
     private void setRepairLogTruncationHandle(long newHandle)
+    {
+        setRepairLogTruncationHandle(newHandle, true);
+    }
+
+    private void setRepairLogTruncationHandle(long newHandle, boolean tellReplica)
     {
         if (newHandle < m_repairLogTruncationHandle) {
             hostLog.error("Is leader: " + m_isLeader + ", xin-Updating truncation point from " +
@@ -1297,7 +1303,17 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             if (m_defaultConsistencyReadLevel == ReadLevel.SAFE) {
                 m_bufferedReadLog.releaseBufferedReads(m_mailbox, m_repairLogTruncationHandle);
             }
-            scheduleRepairLogTruncateMsg();
+
+            if (tellReplica) {
+                // complete transaction response message will move its truncation point locally
+                // because MP will not allow any new SP to run before it finishes and MP transaction
+                // can be restarted.
+                // Leader does not know when replcias have finished its complete transaction message.
+                // Adding a counter will not help here because of edge cases like restarting MP txn
+                // with a following SP without any need to fix replica. This SP will commit immediately
+                // before its previous MP receive acked complete transaction response message from replicas.
+                scheduleRepairLogTruncateMsg();
+            }
         }
     }
 
