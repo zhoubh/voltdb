@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.zip.CRC32;
 
 import org.voltcore.utils.DBBPool.BBContainer;
 import org.voltcore.utils.Pair;
@@ -49,6 +50,8 @@ public class MockExecutionEngine extends ExecutionEngine {
             final long[] planFragmentIds,
             final long[] inputDepIds,
             final Object[] parameterSets,
+            boolean[] isWriteFrag,
+            CRC32 writeCRC,
             final long txnId,
             final long spHandle,
             final long lastCommittedSpHandle,

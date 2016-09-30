@@ -22,23 +22,26 @@
  */
 package org.voltdb;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import org.voltcore.network.*;
+import org.voltcore.network.Connection;
+import org.voltcore.network.MockConnection;
+import org.voltcore.network.MockWriteStream;
+import org.voltcore.network.WriteStream;
 import org.voltdb.client.ClientResponse;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class TestStatsAgent {
 
@@ -121,7 +124,7 @@ public class TestStatsAgent {
         Object[] blah = new Object[2];
         blah[0] = subselector;
         blah[1] = interval;
-        return ParameterSet.fromArrayWithCopy(blah);
+        return ParameterSet.fromArrayNoCopy(blah);
     }
 
     @Test

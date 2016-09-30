@@ -28,7 +28,6 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.BatchTimeoutOverrideType;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.utils.MiscUtils;
 
 /**
  * This class packs the parameters and dispatches the transactions.
@@ -101,19 +100,10 @@ public class InternalConnectionHandler {
             applyBackPressure();
         }
 
-        StoredProcedureInvocation task = new StoredProcedureInvocation();
+        SPIfromParameterArray task = new SPIfromParameterArray();
         task.setProcName(procName);
         task.setParams(args);
-
-        try {
-            task = MiscUtils.roundTripForCL(task);
-            task.setClientHandle(m_adapter.connectionId());
-        } catch (Exception e) {
-            String fmt = "Cannot invoke procedure %s. failed to create task.";
-            m_logger.rateLimitedLog(SUPPRESS_INTERVAL, Level.ERROR, null, fmt, procName);
-            m_failedCount.incrementAndGet();
-            return false;
-        }
+        task.setClientHandle(m_adapter.connectionId());
 
         if (timeout != BatchTimeoutOverrideType.NO_TIMEOUT) {
             task.setBatchTimeout(timeout);
@@ -129,10 +119,20 @@ public class InternalConnectionHandler {
             return false;
         }
 
+        SPIfromSerialization serializedSPI;
+        try {
+            serializedSPI = task.roundTripForCL();
+        } catch (Exception e) {
+            String fmt = "Cannot invoke procedure %s. failed to create task.";
+            m_logger.rateLimitedLog(SUPPRESS_INTERVAL, Level.ERROR, null, fmt, procName);
+            m_failedCount.incrementAndGet();
+            return false;
+        }
+
         InternalAdapterTaskAttributes kattrs = new InternalAdapterTaskAttributes(
                 DEFAULT_INTERNAL_ADAPTER_NAME, isAdmin, m_adapter.connectionId());
 
-        if (!m_adapter.createTransaction(kattrs, procName, catProc, cb, null, task, user, partition, System.nanoTime())) {
+        if (!m_adapter.createTransaction(kattrs, procName, catProc, cb, null, serializedSPI, user, partition, System.nanoTime())) {
             m_failedCount.incrementAndGet();
             return false;
         }
@@ -158,19 +158,12 @@ public class InternalConnectionHandler {
             applyBackPressure();
         }
 
-        StoredProcedureInvocation task = new StoredProcedureInvocation();
+        SPIfromParameterArray task = new SPIfromParameterArray();
 
         task.setProcName(proc);
         task.setParams(fieldList);
-        try {
-            task = MiscUtils.roundTripForCL(task);
-            task.setClientHandle(m_adapter.connectionId());
-        } catch (Exception e) {
-            String fmt = "Cannot invoke procedure %s from streaming interface %s. failed to create task.";
-            m_logger.rateLimitedLog(SUPPRESS_INTERVAL, Level.ERROR, null, fmt, proc, caller);
-            m_failedCount.incrementAndGet();
-            return false;
-        }
+        task.setClientHandle(m_adapter.connectionId());
+
         int partition = -1;
         try {
             partition = InvocationDispatcher.getPartitionForProcedure(catProc, task);
@@ -181,11 +174,21 @@ public class InternalConnectionHandler {
             return false;
         }
 
+        SPIfromSerialization serializedSPI;
+        try {
+            serializedSPI = task.roundTripForCL();
+        } catch (Exception e) {
+            String fmt = "Cannot invoke procedure %s from streaming interface %s. failed to create task.";
+            m_logger.rateLimitedLog(SUPPRESS_INTERVAL, Level.ERROR, null, fmt, proc, caller);
+            m_failedCount.incrementAndGet();
+            return false;
+        }
+
         InternalAdapterTaskAttributes kattrs = new InternalAdapterTaskAttributes(caller,  m_adapter.connectionId());
 
         final AuthUser user = getCatalogContext().authSystem.getImporterUser();
 
-        if (!m_adapter.createTransaction(kattrs, proc, catProc, procCallback, statsCollector, task, user, partition, System.nanoTime())) {
+        if (!m_adapter.createTransaction(kattrs, proc, catProc, procCallback, statsCollector, serializedSPI, user, partition, System.nanoTime())) {
             m_failedCount.incrementAndGet();
             return false;
         }

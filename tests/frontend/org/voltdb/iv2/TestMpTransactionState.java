@@ -45,8 +45,8 @@ import org.mockito.ArgumentCaptor;
 import org.voltcore.messaging.Mailbox;
 import org.voltcore.messaging.VoltMessage;
 import org.voltdb.ParameterSet;
+import org.voltdb.SPIfromParameterArray;
 import org.voltdb.SiteProcedureConnection;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
@@ -225,7 +225,7 @@ public class TestMpTransactionState extends TestCase
                     System.currentTimeMillis(),
                     true,
                     false,
-                    new StoredProcedureInvocation(),
+                    new SPIfromParameterArray(),
                     0,
                     0,
                     false);
@@ -281,7 +281,7 @@ public class TestMpTransactionState extends TestCase
                     System.currentTimeMillis(),
                     true,
                     false,
-                    new StoredProcedureInvocation(),
+                    new SPIfromParameterArray(),
                     0,
                     0,
                     false);
@@ -334,7 +334,7 @@ public class TestMpTransactionState extends TestCase
                     System.currentTimeMillis(),
                     true,
                     false,
-                    new StoredProcedureInvocation(),
+                    new SPIfromParameterArray(),
                     0,
                     0,
                     false);
@@ -389,7 +389,7 @@ public class TestMpTransactionState extends TestCase
                     System.currentTimeMillis(),
                     true,
                     false,
-                    new StoredProcedureInvocation(),
+                    new SPIfromParameterArray(),
                     0,
                     0,
                     false);
@@ -449,7 +449,7 @@ public class TestMpTransactionState extends TestCase
                     System.currentTimeMillis(),
                     true,
                     false,
-                    new StoredProcedureInvocation(),
+                    new SPIfromParameterArray(),
                     0,
                     0,
                     false);
@@ -505,7 +505,7 @@ public class TestMpTransactionState extends TestCase
         long truncPt = 100L;
         Iv2InitiateTaskMessage taskmsg =
             new Iv2InitiateTaskMessage(0, 0, truncPt, 101L, System.currentTimeMillis(),
-                                       true, false, new StoredProcedureInvocation(), 0, 0, false);
+                                       true, false, new SPIfromParameterArray(), 0, 0, false);
         assertEquals(truncPt, taskmsg.getTruncationHandle());
 
         FragmentTaskMessage localFrag = mock(FragmentTaskMessage.class);
@@ -542,7 +542,7 @@ public class TestMpTransactionState extends TestCase
                         System.currentTimeMillis(),
                         true,
                         false,
-                        new StoredProcedureInvocation(),
+                        new SPIfromParameterArray(),
                         0,
                         0,
                         false);

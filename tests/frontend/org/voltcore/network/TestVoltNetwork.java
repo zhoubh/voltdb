@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -61,15 +60,15 @@ public class TestVoltNetwork extends TestCase {
         }
 
         @Override
-        public void handleMessage(ByteBuffer message, Connection c) {
+        public void handleMessage(NIOReadStream inputStream, Connection c) {
             // TODO Auto-generated method stub
 
         }
 
         @Override
-        public ByteBuffer retrieveNextMessage(NIOReadStream c) {
+        public boolean nextMessageReady(NIOReadStream c) {
             // TODO Auto-generated method stub
-            return null;
+            return false;
         }
 
         @Override

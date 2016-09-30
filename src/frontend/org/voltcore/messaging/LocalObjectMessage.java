@@ -16,7 +16,12 @@
  */
 package org.voltcore.messaging;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 public class LocalObjectMessage extends VoltMessage {
     public final Object payload;
@@ -31,7 +36,12 @@ public class LocalObjectMessage extends VoltMessage {
     }
 
     @Override
-    protected void initFromBuffer(ByteBuffer buf) {
+    protected void initFromContainer(SharedBBContainer container) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -40,4 +50,6 @@ public class LocalObjectMessage extends VoltMessage {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public void discard() {}
 }

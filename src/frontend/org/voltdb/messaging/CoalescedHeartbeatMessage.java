@@ -21,6 +21,9 @@ import java.nio.ByteBuffer;
 
 import org.voltcore.messaging.HeartbeatMessage;
 import org.voltcore.messaging.TransactionInfoBaseMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 public class CoalescedHeartbeatMessage extends TransactionInfoBaseMessage {
 
@@ -65,8 +68,9 @@ public class CoalescedHeartbeatMessage extends TransactionInfoBaseMessage {
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
-        super.initFromBuffer(buf);
+    public void initFromContainer(SharedBBContainer container) throws IOException {
+        super.initFromContainer(container);
+        ByteBuffer buf = container.b();
         final int numHeartbeats = buf.get();
         m_messages = new HeartbeatMessage[numHeartbeats];
         m_messageDestinations = new long[numHeartbeats];
@@ -77,7 +81,13 @@ public class CoalescedHeartbeatMessage extends TransactionInfoBaseMessage {
                                                   buf.getLong());
             m_messages[ii].m_sourceHSId = m_sourceHSId;
         }
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
+        container.discard();
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
     }
 
     @Override
@@ -89,8 +99,10 @@ public class CoalescedHeartbeatMessage extends TransactionInfoBaseMessage {
             buf.putLong(m_destinationHSIds[ii]);
             buf.putLong(m_lastSafeTxnIds[ii]);
         }
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
+    @Override
+    public void discard() {}
 }

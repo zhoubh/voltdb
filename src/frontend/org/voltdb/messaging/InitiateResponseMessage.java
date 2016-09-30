@@ -22,9 +22,13 @@ import java.nio.ByteBuffer;
 
 import org.voltcore.messaging.Subject;
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltcore.utils.Pair;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.SPIfromSerializedBuffer;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ClientResponse;
@@ -53,8 +57,7 @@ public class InitiateResponseMessage extends VoltMessage {
     private Pair<Long, byte[]> m_currentHashinatorConfig;
 
     /** Empty constructor for de-serialization */
-    public InitiateResponseMessage()
-    {
+    public InitiateResponseMessage() {
         m_initiatorHSId = -1;
         m_coordinatorHSId = -1;
         m_subject = Subject.DEFAULT.getId();
@@ -180,8 +183,7 @@ public class InitiateResponseMessage extends VoltMessage {
     }
 
     @Override
-    public int getSerializedSize()
-    {
+    public int getSerializedSize() {
         int msgsize = super.getSerializedSize();
         msgsize += 8 // txnId
             + 8 // m_spHandle
@@ -205,8 +207,7 @@ public class InitiateResponseMessage extends VoltMessage {
     }
 
     @Override
-    public void flattenToBuffer(ByteBuffer buf) throws IOException
-    {
+    public void flattenToBuffer(ByteBuffer buf) throws IOException {
         buf.put(VoltDbMessageFactory.INITIATE_RESPONSE_ID);
         buf.putLong(m_txnId);
         buf.putLong(m_spHandle);
@@ -224,13 +225,14 @@ public class InitiateResponseMessage extends VoltMessage {
             buf.put(m_currentHashinatorConfig.getSecond());
             m_invocation.flattenToBuffer(buf);
         }
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException
-    {
+    protected void initFromContainer(SharedBBContainer container) {}
+
+    protected void initFromBuffer(ByteBuffer buf) throws IOException {
         m_txnId = buf.getLong();
         m_spHandle = buf.getLong();
         m_initiatorHSId = buf.getLong();
@@ -249,11 +251,20 @@ public class InitiateResponseMessage extends VoltMessage {
             buf.get(hashinatorBytes);
             m_currentHashinatorConfig = Pair.of(hashinatorVersion, hashinatorBytes);
             // SPI must be the last to deserialize, it will take the remaining as parameter bytes
-            m_invocation = new StoredProcedureInvocation();
-            m_invocation.initFromBuffer(buf);
+            SPIfromSerializedBuffer serializedSPI = new SPIfromSerializedBuffer();
+            serializedSPI.initFromByteBuffer(buf);
+            m_invocation = serializedSPI;
             m_commit = false;
         }
     }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromBuffer(handler.getNextBBMessage(inputStream));
+    }
+
+    @Override
+    public void discard() {}
 
     @Override
     public String toString() {

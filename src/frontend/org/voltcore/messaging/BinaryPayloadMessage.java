@@ -16,7 +16,12 @@
  */
 package org.voltcore.messaging;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 public class BinaryPayloadMessage extends VoltMessage {
 
@@ -33,7 +38,9 @@ public class BinaryPayloadMessage extends VoltMessage {
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) {
+    public void initFromContainer(SharedBBContainer container) {}
+
+    private void initFromBuffer(ByteBuffer buf) {
         m_metadata = new byte[buf.getShort()];
         buf.get(m_metadata);
         final int payloadLength = buf.getInt();
@@ -41,7 +48,12 @@ public class BinaryPayloadMessage extends VoltMessage {
             m_payload = new byte[payloadLength];
             buf.get(m_payload);
         }
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromBuffer(handler.getNextBBMessage(inputStream));
     }
 
     @Override
@@ -65,7 +77,10 @@ public class BinaryPayloadMessage extends VoltMessage {
             buf.put(m_payload);
         }
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
+
+    @Override
+    public void discard() {}
 }

@@ -17,12 +17,16 @@
 
 package org.voltdb.messaging;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 import org.voltcore.messaging.Subject;
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.VoltTable;
 import org.voltdb.exceptions.SerializableException;
@@ -227,11 +231,13 @@ public class FragmentResponseMessage extends VoltMessage {
             buf.putInt(0);
         }
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
     @Override
+    protected void initFromContainer(SharedBBContainer container) {}
+
     public void initFromBuffer(ByteBuffer buf) {
         m_executorHSId = buf.getLong();
         m_destinationHSId = buf.getLong();
@@ -252,8 +258,16 @@ public class FragmentResponseMessage extends VoltMessage {
             }
         }
         m_exception = SerializableException.deserializeFromBuffer(buf);
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
     }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromBuffer(handler.getNextBBMessage(inputStream));
+    }
+
+    @Override
+    public void discard() {}
 
     @Override
     public String toString() {

@@ -40,10 +40,10 @@ import static org.voltcore.agreement.maker.SiteFailureMessageMaker.sfmSurvivors;
 import static org.voltcore.agreement.matcher.SiteFailureMatchers.failureForwardMsgIs;
 import static org.voltcore.agreement.matcher.SiteFailureMatchers.siteFailureIs;
 
-import java.nio.ByteBuffer;
 import java.util.Set;
 
 import org.junit.Test;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 import com.google_voltpatches.common.collect.ImmutableSet;
 import com.natpryce.makeiteasy.Maker;
@@ -65,13 +65,14 @@ public class TestSiteFailureMessage {
         SiteFailureMessage msg = make(sfm);
         assertThat(msg,siteFailureIs(sfmSafe(4,44,5,55),sfmFailed(4,5,6),sfmSurvived(1,2,3)));
 
-        ByteBuffer bb = VoltMessage.toBuffer(msg);
+        SharedBBContainer container = VoltMessage.toContainer(msg);
 
-        VoltMessage vmsg = factory.createMessageFromBuffer(bb, 1L);
+        VoltMessage vmsg = factory.createMessageFromContainer(container, 1L);
         assertTrue(vmsg instanceof SiteFailureMessage);
 
         SiteFailureMessage gsm = (SiteFailureMessage)vmsg;
         assertThat(gsm,siteFailureIs(sfmSafe(4,44,5,55),sfmFailed(4,5,6),sfmSurvived(1,2,3)));
+        container.discard();
     }
 
     @Test
@@ -82,13 +83,14 @@ public class TestSiteFailureMessage {
         SiteFailureMessage msg = make(sfm.but(with(sfmDecision,decision)));
         assertThat(msg,siteFailureIs(sfmSafe(4,44,5,55),decision,1,2,3));
 
-        ByteBuffer bb = VoltMessage.toBuffer(msg);
+        SharedBBContainer container = VoltMessage.toContainer(msg);
 
-        VoltMessage vmsg = factory.createMessageFromBuffer(bb, 1L);
+        VoltMessage vmsg = factory.createMessageFromContainer(container, 1L);
         assertTrue(vmsg instanceof SiteFailureMessage);
 
         SiteFailureMessage gsm = (SiteFailureMessage)vmsg;
         assertThat(gsm,siteFailureIs(sfmSafe(4,44,5,55),decision,1,2,3));
+        container.discard();
     }
 
    @Test
@@ -96,9 +98,9 @@ public class TestSiteFailureMessage {
        SiteFailureMessage msg = make(sfm);
        assertThat(msg,siteFailureIs(sfmSafe(4,44,5,55),sfmFailed(4,5,6),sfmSurvived(1,2,3)));
 
-       ByteBuffer bb = VoltMessage.toBuffer(msg);
+       SharedBBContainer container = VoltMessage.toContainer(msg);
 
-       VoltMessage vmsg = factory.createMessageFromBuffer(bb, 1L);
+       VoltMessage vmsg = factory.createMessageFromContainer(container, 1L);
        assertTrue(vmsg instanceof SiteFailureMessage);
 
        SiteFailureMessage gsm = (SiteFailureMessage)vmsg;
@@ -106,14 +108,16 @@ public class TestSiteFailureMessage {
 
        SiteFailureForwardMessage fmsg = new SiteFailureForwardMessage(gsm);
        assertThat(fmsg, failureForwardMsgIs(1, sfmSafe(4,44,5,55),sfmFailed(4,5,6),sfmSurvived(1,2,3)));
+       container.discard();
 
-       bb = VoltMessage.toBuffer(fmsg);
+       container = VoltMessage.toContainer(fmsg);
 
-       vmsg = factory.createMessageFromBuffer(bb, 1L);
+       vmsg = factory.createMessageFromContainer(container, 1L);
        assertTrue(vmsg instanceof SiteFailureForwardMessage);
 
        SiteFailureForwardMessage gsmf = (SiteFailureForwardMessage)vmsg;
        assertThat(gsmf, failureForwardMsgIs(1, sfmSafe(4,44,5,55),sfmFailed(4,5,6),sfmSurvived(1,2,3)));
+       container.discard();
    }
 
 }

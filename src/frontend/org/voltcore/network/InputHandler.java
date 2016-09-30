@@ -18,7 +18,6 @@
 package org.voltcore.network;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 public interface InputHandler {
 
@@ -34,9 +33,9 @@ public interface InputHandler {
      * (via NIOReadStream.getBytes()) to a new byte buffer and return them.
      *
      * @param inputStream
-     * @return ByteBuffer containing the message data
+     * @return boolean full message is available
      */
-    ByteBuffer retrieveNextMessage(NIOReadStream inputStream) throws IOException;
+    boolean nextMessageReady(NIOReadStream inputStream) throws IOException;
 
     /**
      * Handle the incoming message produced by retrieve next message
@@ -45,7 +44,7 @@ public interface InputHandler {
      * @param channelFacade
      * @throws IOException
      */
-    void handleMessage(ByteBuffer message, Connection c) throws IOException;
+    void handleMessage(NIOReadStream inputStream, Connection c) throws IOException;
 
     /**
      * Notify the input handler that the Connection will start receiving work

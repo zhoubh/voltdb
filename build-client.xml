@@ -104,6 +104,7 @@
                   org/voltcore/utils/COWNavigableSet.java
                   org/voltcore/utils/COWSortedMap.java
                   org/voltcore/utils/DBBPool.java
+                  org/voltcore/utils/HBBPool.java
                   org/voltcore/utils/DeferredSerialization.java
                   org/voltcore/utils/EstTime.java
                   org/voltcore/utils/EstTimeUpdater.java

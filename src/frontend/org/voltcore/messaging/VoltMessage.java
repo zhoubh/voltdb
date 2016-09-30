@@ -20,6 +20,11 @@ package org.voltcore.messaging;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+
 public abstract class VoltMessage
 {
     // place holder for destination site ids when using multi-cast
@@ -33,15 +38,18 @@ public abstract class VoltMessage
         return 1;
     }
 
-    protected abstract void initFromBuffer(ByteBuffer buf) throws IOException;
+    protected abstract void initFromContainer(SharedBBContainer container) throws IOException;
+    protected abstract void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException;
     public abstract void flattenToBuffer(ByteBuffer buf) throws IOException;
+    public abstract void discard();
 
-    public static ByteBuffer toBuffer(VoltMessage message) throws IOException {
-        ByteBuffer buf = ByteBuffer.allocate(message.getSerializedSize());
+    public static SharedBBContainer toContainer(VoltMessage message) throws IOException {
+        SharedBBContainer container = HBBPool.allocateHeapAndPool(message.getSerializedSize());
+        ByteBuffer buf = container.b();
         message.flattenToBuffer(buf);
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.flip();
-        return buf;
+        return container;
     }
 
     public byte getSubject() {

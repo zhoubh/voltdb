@@ -30,6 +30,8 @@ import java.util.zip.InflaterOutputStream;
 import org.voltcore.utils.CoreUtils;
 import org.voltcore.utils.DBBPool;
 import org.voltcore.utils.DBBPool.BBContainer;
+import org.voltcore.utils.HBBPool;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltDBInterface;
 import org.xerial.snappy.Snappy;
@@ -182,18 +184,18 @@ public final class CompressionService {
         return compressBytes(bytes, 0, bytes.length);
     }
 
-    public static Future<byte[]> decompressBufferAsync(final ByteBuffer input) throws IOException {
-        return submitCompressionTask(new Callable<byte[]>() {
+    public static Future<SharedBBContainer> decompressBufferAsync(final ByteBuffer input) throws IOException {
+        return submitCompressionTask(new Callable<SharedBBContainer>() {
 
             @Override
-            public byte[] call() throws Exception {
+            public SharedBBContainer call() throws Exception {
                 return decompressBuffer(input);
             }
 
         });
     }
 
-    public static byte[] decompressBuffer(final ByteBuffer compressed) throws IOException {
+    public static SharedBBContainer decompressBuffer(final ByteBuffer compressed) throws IOException {
         assert(compressed.isDirect());
         IOBuffers buffers = m_buffers.get();
         BBContainer output = buffers.output;
@@ -211,8 +213,8 @@ public final class CompressionService {
         final int actualUncompressedLength = Snappy.uncompress(compressed, output.b());
         assert(uncompressedLength == actualUncompressedLength);
 
-        byte result[] = new byte[actualUncompressedLength];
-        output.b().get(result);
+        SharedBBContainer result = HBBPool.allocateHeapAndPool(actualUncompressedLength);
+        output.b().get(result.b().array());
         return result;
     }
 

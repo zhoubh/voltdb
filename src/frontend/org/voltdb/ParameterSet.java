@@ -354,7 +354,7 @@ public class ParameterSet implements JSONString {
         if (array.length == 0)
             return new int[0];
 
-        // A note on Object[] null handling.  For most object array types, nulls can be bassed in as 'null' and/or
+        // A note on Object[] null handling.  For most object array types, nulls can be passed in as 'null' and/or
         // the VoltType Null equivalent.  Note that Object[] containing Strings supports null and VoltType nulls
         // as array elements.  But any other Sigil type class (big decimal, timestamp, varbinary)
         // DO NOT support nulls or VoltType nulls in Object[] arrays.  Also note that currently we do not

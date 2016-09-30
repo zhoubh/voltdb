@@ -22,7 +22,6 @@ import java.io.IOException;
 import org.voltcore.messaging.Mailbox;
 import org.voltdb.PartitionDRGateway;
 import org.voltdb.SiteProcedureConnection;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.dtxn.TransactionState;
 import org.voltdb.messaging.CompleteTransactionMessage;
 import org.voltdb.messaging.CompleteTransactionResponseMessage;
@@ -63,10 +62,10 @@ public class CompleteTransactionTask extends TransactionTask
                     m_txnState.getUndoLog());
         }
         if (!m_completeMsg.isRestart()) {
-            doCommonSPICompleteActions();
-
             // Log invocation to DR
             logToDR();
+            doCommonSPICompleteActions();
+
             hostLog.debug("COMPLETE: " + this);
         }
         else
@@ -143,9 +142,9 @@ public class CompleteTransactionTask extends TransactionTask
                     m_txnState.getUndoLog());
         }
         if (!m_completeMsg.isRestart()) {
+            logToDR();
             // this call does the right thing with a null TransactionTaskQueue
             doCommonSPICompleteActions();
-            logToDR();
         }
         else {
             m_txnState.setBeginUndoToken(Site.kInvalidUndoToken);
@@ -165,12 +164,11 @@ public class CompleteTransactionTask extends TransactionTask
                 hostLog.error("Unable to log MP transaction to DR because of missing InitiateTaskMessage, " +
                               "fragment: " + fragment.toString());
             }
-            StoredProcedureInvocation invocation = initiateTask.getStoredProcedureInvocation().getShallowCopy();
             m_drGateway.onSuccessfulMPCall(m_txnState.m_spHandle,
                     m_txnState.txnId,
                     m_txnState.uniqueId,
                     m_completeMsg.getHash(),
-                    invocation,
+                    initiateTask.getStoredProcedureInvocation().getProcName(),
                     m_txnState.getResults());
         }
     }

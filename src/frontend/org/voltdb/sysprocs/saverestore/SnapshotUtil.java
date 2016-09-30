@@ -61,13 +61,13 @@ import org.voltcore.utils.Pair;
 import org.voltdb.ClientInterface;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExtensibleSnapshotDigestData;
+import org.voltdb.SPIfromSerialization;
 import org.voltdb.SimpleClientResponseAdapter;
 import org.voltdb.SnapshotCompletionInterest;
 import org.voltdb.SnapshotDaemon;
 import org.voltdb.SnapshotDaemon.ForwardClientException;
 import org.voltdb.SnapshotFormat;
 import org.voltdb.SnapshotInitiationInfo;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TheHashinator;
 import org.voltdb.TheHashinator.HashinatorType;
 import org.voltdb.VoltDB;
@@ -1548,7 +1548,7 @@ public class SnapshotUtil {
     /*
      * Do parameter checking for the pre-JSON version of @SnapshotRestore old version
      */
-    public static ClientResponseImpl transformRestoreParamsToJSON(StoredProcedureInvocation task) {
+    public static ClientResponseImpl transformRestoreParamsToJSON(SPIfromSerialization task) {
         Object params[] = task.getParams().toArray();
         if (params.length == 1) {
             try{
@@ -1560,6 +1560,9 @@ public class SnapshotUtil {
                 }
                 task.setParams( jsObj.toString() );
             } catch (JSONException e){
+                Throwables.propagate(e);
+            }
+            catch (IOException e) {
                 Throwables.propagate(e);
             }
             return null;
@@ -1598,10 +1601,13 @@ public class SnapshotUtil {
                 }
                 jsObj.put(SnapshotUtil.JSON_NONCE, params[1]);
                 jsObj.put(SnapshotUtil.JSON_DUPLICATES_PATH, params[0]);
+                task.setParams( jsObj.toString() );
             } catch (JSONException e) {
                 Throwables.propagate(e);
             }
-            task.setParams( jsObj.toString() );
+            catch (IOException e) {
+                Throwables.propagate(e);
+            }
             return null;
         } else {
             return new ClientResponseImpl(ClientResponseImpl.GRACEFUL_FAILURE,

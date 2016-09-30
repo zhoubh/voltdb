@@ -27,8 +27,8 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.PartitionDRGateway;
 import org.voltdb.SiteProcedureConnection;
 import org.voltdb.VoltTable;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.client.BatchTimeoutOverrideType;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.InitiateResponseMessage;
 import org.voltdb.messaging.Iv2InitiateTaskMessage;
 import org.voltdb.rejoin.TaskLog;
@@ -95,17 +95,16 @@ public class SpProcedureTask extends ProcedureTask
         if (!response.shouldCommit()) {
             m_txnState.setNeedsRollback(true);
         }
-        completeInitiateTask(siteConnection);
         response.m_sourceHSId = m_initiator.getHSId();
         m_initiator.deliver(response);
+        logToDR(txnState, response);
+        completeInitiateTask(siteConnection);
         if (EXEC_TRACE_ENABLED) {
             execLog.l7dlog( Level.TRACE, LogKeys.org_voltdb_ExecutionSite_SendingCompletedWUToDtxn.name(), null);
         }
         if (HOST_DEBUG_ENABLED) {
             hostLog.debug("COMPLETE: " + this);
         }
-
-        logToDR(txnState, response);
     }
 
     @Override
@@ -187,7 +186,7 @@ public class SpProcedureTask extends ProcedureTask
         // Log invocation to DR
         if (m_drGateway != null && !txnState.isReadOnly() && !txnState.needsRollback()) {
             m_drGateway.onSuccessfulProcedureCall(txnState.txnId, txnState.uniqueId, txnState.getHash(),
-                    txnState.getInvocation(), response.getClientResponseData());
+                    txnState.getInvocation().getProcName(), response.getClientResponseData());
         }
     }
 

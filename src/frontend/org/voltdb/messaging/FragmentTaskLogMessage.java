@@ -23,6 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.voltcore.messaging.TransactionInfoBaseMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 /**
  * Used to reply a partition's portion of the work done as part of a
@@ -93,22 +96,29 @@ public class FragmentTaskLogMessage extends TransactionInfoBaseMessage {
             assert(buf.position() == expected);
         }
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
-        super.initFromBuffer(buf);
+    public void initFromContainer(SharedBBContainer container) throws IOException {
+        super.initFromContainer(container);
+        ByteBuffer buf = container.b();
         int size = buf.getInt();
         for (int i = 0; i < size; i++) {
             byte type = buf.get();
             assert(type == VoltDbMessageFactory.FRAGMENT_TASK_ID);
             FragmentTaskMessage ft = new FragmentTaskMessage();
-            ft.initFromSubMessageBuffer(buf);
+            ft.initFromSubMessageBuffer(container);
 
             m_fragmentTasks.add(ft);
         }
+        container.discard();
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
     }
 
     public void appendFragmentTask(FragmentTaskMessage ft) {
@@ -119,4 +129,7 @@ public class FragmentTaskLogMessage extends TransactionInfoBaseMessage {
     public List<FragmentTaskMessage> getFragmentTasks() {
         return m_fragmentTasks;
     }
+
+    @Override
+    public void discard() {}
 }

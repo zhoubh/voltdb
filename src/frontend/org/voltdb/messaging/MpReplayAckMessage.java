@@ -17,10 +17,13 @@
 
 package org.voltdb.messaging;
 
-import org.voltcore.messaging.VoltMessage;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 /**
  * A message sent from the multipart replayer back to the involved
@@ -36,8 +39,7 @@ public class MpReplayAckMessage extends VoltMessage {
         super();
     }
 
-    public MpReplayAckMessage(long txnId, boolean isPoison)
-    {
+    public MpReplayAckMessage(long txnId, boolean isPoison) {
         super();
         m_txnId = txnId;
         m_poison = isPoison;
@@ -47,8 +49,7 @@ public class MpReplayAckMessage extends VoltMessage {
     public boolean isPoison() { return m_poison; }
 
     @Override
-    public int getSerializedSize()
-    {
+    public int getSerializedSize() {
         int size = super.getSerializedSize();
         size += 8 // m_txnId
                 + 1; // m_poison
@@ -56,17 +57,25 @@ public class MpReplayAckMessage extends VoltMessage {
     }
 
     @Override
-    protected void initFromBuffer(ByteBuffer buf) throws IOException
-    {
+    protected void initFromContainer(SharedBBContainer container) throws IOException {
+        ByteBuffer buf = container.b();
         m_txnId = buf.getLong();
         m_poison = buf.get() == 1;
+        container.discard();
     }
 
     @Override
-    public void flattenToBuffer(ByteBuffer buf) throws IOException
-    {
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
+    }
+
+    @Override
+    public void flattenToBuffer(ByteBuffer buf) throws IOException {
         buf.put(VoltDbMessageFactory.MP_REPLAY_ACK_ID);
         buf.putLong(m_txnId);
         buf.put(m_poison ? 1 : (byte) 0);
     }
+
+    @Override
+    public void discard() {}
 }

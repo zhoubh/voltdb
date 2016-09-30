@@ -245,7 +245,7 @@ public final class InvocationDispatcher {
         });
     }
 
-    public final ClientResponseImpl dispatch(StoredProcedureInvocation task, InvocationClientHandler handler, Connection ccxn, AuthUser user) {
+    public final ClientResponseImpl dispatch(SPIfromSerialization task, InvocationClientHandler handler, Connection ccxn, AuthUser user) {
         final long nowNanos = System.nanoTime();
                 // Deserialize the client's request and map to a catalog stored procedure
         final CatalogContext catalogContext = m_catalogContext.get();
@@ -380,7 +380,10 @@ public final class InvocationDispatcher {
                 // SnapshotStatus is really through @Statistics now, but preserve the
                 // legacy calling mechanism
                 Object[] params = new Object[] { "SNAPSHOTSTATUS" };
-                task.setParams(params);
+                try {
+                    task.setParams(params);
+                }
+                catch (IOException e) {} // should never happen because the param is a single string
                 return dispatchStatistics(OpsSelector.STATISTICS, task, ccxn);
             }
             else if ("@SnapshotScan".equals(procName)) {
@@ -495,18 +498,19 @@ public final class InvocationDispatcher {
     }
 
     private final static ClientResponseImpl dispatchGetPartitionKeys(StoredProcedureInvocation task) {
+        long clientHandle = task.clientHandle;
         Object params[] = task.getParams().toArray();
         String typeString = "the type of partition key to return and can be one of " +
                             "INTEGER, STRING or VARCHAR (equivalent), or VARBINARY";
         if (params.length != 1 || params[0] == null) {
             return gracefulFailureResponse(
                     "GetPartitionKeys must have one string parameter specifying " + typeString,
-                    task.clientHandle);
+                    clientHandle);
         }
         if (!(params[0] instanceof String)) {
             return gracefulFailureResponse(
                     "GetPartitionKeys must have one string parameter specifying " + typeString +
-                    " provided type was " + params[0].getClass().getName(), task.clientHandle);
+                    " provided type was " + params[0].getClass().getName(), clientHandle);
         }
         VoltType voltType = null;
         String typeStr = ((String)params[0]).trim().toUpperCase();
@@ -519,15 +523,15 @@ public final class InvocationDispatcher {
         } else {
             return gracefulFailureResponse(
                     "Type " + typeStr + " is not a supported type of partition key, " + typeString,
-                    task.clientHandle);
+                    clientHandle);
         }
         VoltTable partitionKeys = TheHashinator.getPartitionKeys(voltType);
         if (partitionKeys == null) {
             return gracefulFailureResponse(
                     "Type " + typeStr + " is not a supported type of partition key, " + typeString,
-                    task.clientHandle);
+                    clientHandle);
         }
-        return new ClientResponseImpl(ClientResponse.SUCCESS, new VoltTable[] { partitionKeys }, null, task.clientHandle);
+        return new ClientResponseImpl(ClientResponse.SUCCESS, new VoltTable[] { partitionKeys }, null, clientHandle);
     }
 
     private final ClientResponseImpl dispatchSubscribe(InvocationClientHandler handler, StoredProcedureInvocation task) {
@@ -562,20 +566,20 @@ public final class InvocationDispatcher {
     }
 
     final static ClientResponseImpl dispatchStatistics(OpsSelector selector, StoredProcedureInvocation task, Connection ccxn) {
+        ClientResponseImpl rslt = null;
         try {
             OpsAgent agent = VoltDB.instance().getOpsAgent(selector);
             if (agent != null) {
                 agent.performOpsAction(ccxn, task.clientHandle, selector, task.getParams());
             }
             else {
-                return errorResponse(ccxn, task.clientHandle, ClientResponse.GRACEFUL_FAILURE,
+                rslt = errorResponse(ccxn, task.clientHandle, ClientResponse.GRACEFUL_FAILURE,
                         "Unknown OPS selector", null, true);
             }
-
-            return null;
         } catch (Exception e) {
-            return errorResponse( ccxn, task.clientHandle, ClientResponse.UNEXPECTED_FAILURE, null, e, true);
+            rslt = errorResponse( ccxn, task.clientHandle, ClientResponse.UNEXPECTED_FAILURE, null, e, true);
         }
+        return rslt;
     }
 
     //Run System.gc() in it's own thread because it will block
@@ -912,7 +916,7 @@ public final class InvocationDispatcher {
     }
 
     private final ClientResponseImpl useSnapshotCatalogToRestoreSnapshotSchema(
-            final StoredProcedureInvocation task,
+            final SPIfromSerialization task,
             final InvocationClientHandler handler, final Connection ccxn,
             final AuthUser user
             )
@@ -941,7 +945,7 @@ public final class InvocationDispatcher {
             }
             final String dep = new String(catalogContext.getDeploymentBytes(), StandardCharsets.UTF_8);
 
-            final StoredProcedureInvocation catalogUpdateTask = new StoredProcedureInvocation();
+            final SPIfromParameterArray catalogUpdateTask = new SPIfromParameterArray();
 
             catalogUpdateTask.setProcName("@UpdateApplicationCatalog");
             catalogUpdateTask.setParams(catalog,dep);
@@ -1118,7 +1122,7 @@ public final class InvocationDispatcher {
                         }
                         else {
                             // create the execution site task
-                            StoredProcedureInvocation task = getUpdateCatalogExecutionTask(changeResult);
+                            SPIfromParameterArray task = getUpdateCatalogExecutionTask(changeResult);
 
                             ClientResponseImpl error = null;
                             if ((error = m_permissionValidator.shouldAccept(task.getProcName(), result.user, task,
@@ -1129,8 +1133,9 @@ public final class InvocationDispatcher {
                                 /*
                                  * Round trip the invocation to initialize it for command logging
                                  */
+                                SPIfromSerialization serializedSPI = null;
                                 try {
-                                    task = MiscUtils.roundTripForCL(task);
+                                    serializedSPI = task.roundTripForCL();
                                 } catch (Exception e) {
                                     hostLog.fatal(e);
                                     VoltDB.crashLocalVoltDB(e.getMessage(), true, e);
@@ -1138,8 +1143,9 @@ public final class InvocationDispatcher {
                                 // initiate the transaction. These hard-coded values from catalog
                                 // procedure are horrible, horrible, horrible.
                                 createTransaction(changeResult.connectionId,
-                                        task, false, false, false, 0, task.getSerializedSize(),
+                                        serializedSPI, false, false, false, 0, task.getSerializedSize(),
                                         System.nanoTime());
+                                serializedSPI.discard();
                             }
                         }
                     }
@@ -1245,9 +1251,9 @@ public final class InvocationDispatcher {
         c.writeStream().enqueue(buf);
     }
 
-    public static final StoredProcedureInvocation getUpdateCatalogExecutionTask(CatalogChangeResult changeResult) {
+    public static final SPIfromParameterArray getUpdateCatalogExecutionTask(CatalogChangeResult changeResult) {
         // create the execution site task
-           StoredProcedureInvocation task = new StoredProcedureInvocation();
+        SPIfromParameterArray task = new SPIfromParameterArray();
            task.setProcName("@UpdateApplicationCatalog");
            task.setParams(changeResult.encodedDiffCommands,
                           changeResult.catalogHash,
@@ -1314,7 +1320,7 @@ public final class InvocationDispatcher {
         assert(buf.hasArray());
 
         // create the execution site task
-        StoredProcedureInvocation task = new StoredProcedureInvocation();
+        SPIfromParameterArray task = new SPIfromParameterArray();
         task.setBatchTimeout(plannedStmtBatch.work.m_batchTimeout);
         // pick the sysproc based on the presence of partition info
         // HSQL (or PostgreSQL) does not specifically implement AdHoc SP
@@ -1390,17 +1396,19 @@ public final class InvocationDispatcher {
             /*
              * Round trip the invocation to initialize it for command logging
              */
+            SPIfromSerialization serializedSPI = null;
             try {
-                task = MiscUtils.roundTripForCL(task);
+                serializedSPI = task.roundTripForCL();
             } catch (Exception e) {
                 VoltDB.crashLocalVoltDB(e.getMessage(), true, e);
             }
 
             // initiate the transaction
-            createTransaction(plannedStmtBatch.connectionId, task,
+            createTransaction(plannedStmtBatch.connectionId, serializedSPI,
                     plannedStmtBatch.isReadOnly(), isSinglePartition, false,
                     partition,
                     task.getSerializedSize(), System.nanoTime());
+            serializedSPI.discard();
         }
     }
 
@@ -1430,7 +1438,6 @@ public final class InvocationDispatcher {
     }
 
     // Wrap API to SimpleDtxnInitiator - mostly for the future
-    @SuppressWarnings("unused")
     public  boolean createTransaction(
             final long connectionId,
             final long txnId,
@@ -1495,6 +1502,7 @@ public final class InvocationDispatcher {
         long handle = cihm.getHandle(isSinglePartition, partition, invocation.getClientHandle(),
                 messageSize, nowNanos, invocation.getProcName(), initiatorHSId, isReadOnly, isShortCircuitRead);
 
+        invocation.implicitReference(); // Discarded from SetDone() or DeferredSerialization in Send()
         Iv2InitiateTaskMessage workRequest =
             new Iv2InitiateTaskMessage(m_siteId,
                     initiatorHSId,

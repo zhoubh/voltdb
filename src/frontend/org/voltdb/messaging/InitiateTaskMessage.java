@@ -22,7 +22,11 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltcore.messaging.TransactionInfoBaseMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+import org.voltdb.SPIfromSerializedContainer;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.iv2.TxnEgo;
 
@@ -188,13 +192,15 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
 
         m_invocation.flattenToBuffer(buf);
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
-        super.initFromBuffer(buf);
+    public void initFromContainer(SharedBBContainer container) throws IOException {
+        // Assumes that subclasses do not keep references to the bbContainer
+        super.initFromContainer(container);
+        ByteBuffer buf = container.b();
 
         m_lastSafeTxnID = buf.getLong();
         m_isSinglePartition = buf.get() == 1;
@@ -206,8 +212,24 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
             }
         }
 
-        m_invocation = new StoredProcedureInvocation();
-        m_invocation.initFromBuffer(buf);
+        SPIfromSerializedContainer serializedSPI = new SPIfromSerializedContainer();
+        serializedSPI.initFromContainer(container);
+        m_invocation = serializedSPI;
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
+    }
+
+    public SharedBBContainer getSerializedParams() {
+        assert(m_invocation instanceof SPIfromSerializedContainer);
+        return ((SPIfromSerializedContainer)m_invocation).getSerializedParams();
+    }
+
+    @Override
+    public void discard() {
+        m_invocation.discard();
     }
 
     @Override
@@ -239,9 +261,5 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         sb.append(m_invocation.getParams().toString());
 
         return sb.toString();
-    }
-
-    public ByteBuffer getSerializedParams() {
-        return m_invocation.getSerializedParams();
     }
 }

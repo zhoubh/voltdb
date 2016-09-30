@@ -30,9 +30,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.voltcore.utils.PortGenerator;
-
 import junit.framework.TestCase;
+
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+import org.voltcore.utils.PortGenerator;
 
 public class TestMessaging extends TestCase {
 
@@ -56,10 +59,17 @@ public class TestMessaging extends TestCase {
         }
 
         @Override
-        public void initFromBuffer(ByteBuffer buf) {
+        protected void initFromContainer(SharedBBContainer container) {
+            ByteBuffer buf = container.b();
             m_length = buf.limit() - buf.position();
             m_localValue = new byte[m_length];
             buf.get(m_localValue);
+            container.discard();
+        }
+
+        @Override
+        public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+            initFromContainer(handler.getNextHBBMessage(inputStream));
         }
 
         @Override
@@ -86,6 +96,9 @@ public class TestMessaging extends TestCase {
             }
             return true;
         }
+
+        @Override
+        public void discard() {}
     }
 
     public static class MessageFactory extends org.voltcore.messaging.VoltMessageFactory {

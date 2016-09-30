@@ -74,6 +74,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import junit.framework.TestCase;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
@@ -116,8 +118,6 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Base64;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.MiscUtils;
-
-import junit.framework.TestCase;
 
 public class TestJSONInterface extends TestCase {
     final static ContentType utf8ApplicationFormUrlEncoded =
@@ -464,7 +464,8 @@ public class TestJSONInterface extends TestCase {
         assertEquals(pkStart, response.results[0].fetchRow(0).getLong(0));
 
         // try AdHoc
-        pset = ParameterSet.fromArrayNoCopy("insert into foo values (" + (pkStart++) + ", 'adhochello')");
+        pset = ParameterSet.fromArrayNoCopy(
+                "insert into foo values (" + (pkStart++) + ", 'adhochello')");
         responseJSON = callProcOverJSON("@AdHoc", pset, null, null, false, useAdmin);
         response = responseFromJSON(responseJSON);
         if (paused && !useAdmin) {
@@ -641,14 +642,16 @@ public class TestJSONInterface extends TestCase {
             Response response;
 
             // Call insert on admin port
-            pset = ParameterSet.fromArrayNoCopy(1, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    1, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false, true);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
             assertTrue(response.status == ClientResponse.SUCCESS);
 
             // Call insert on closed client port and expect failure
-            pset = ParameterSet.fromArrayNoCopy(2, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    2, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false, false);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
@@ -662,14 +665,16 @@ public class TestJSONInterface extends TestCase {
             assertTrue(response.status == ClientResponse.SUCCESS);
 
             // call insert on open client port
-            pset = ParameterSet.fromArrayNoCopy(2, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    2, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false, false);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
             assertTrue(response.status == ClientResponse.SUCCESS);
 
             // call insert on admin port again (now that both ports are open)
-            pset = ParameterSet.fromArrayNoCopy(3, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    3, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false, true);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
@@ -683,14 +688,16 @@ public class TestJSONInterface extends TestCase {
             assertTrue(response.status == ClientResponse.SUCCESS);
 
             // Call insert on admin port
-            pset = ParameterSet.fromArrayNoCopy(4, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    4, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false, true);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
             assertTrue(response.status == ClientResponse.SUCCESS);
 
             // Call insert on closed client port and expect failure
-            pset = ParameterSet.fromArrayNoCopy(5, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    5, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false, false);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
@@ -742,7 +749,8 @@ public class TestJSONInterface extends TestCase {
             Response response;
 
             // Call insert
-            pset = ParameterSet.fromArrayNoCopy(1, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
+            pset = ParameterSet.fromArrayNoCopy(
+                    1, "hello", new TimestampType(System.currentTimeMillis()), 5.0, "5.0");
             responseJSON = callProcOverJSON("Insert", pset, null, null, false);
             System.out.println(responseJSON);
             response = responseFromJSON(responseJSON);
@@ -755,7 +763,8 @@ public class TestJSONInterface extends TestCase {
             assertTrue(response.status != ClientResponse.SUCCESS);
 
             // Call proc with complex params
-            pset = ParameterSet.fromArrayNoCopy(1,
+            pset = ParameterSet.fromArrayNoCopy(
+                    1,
                     5,
                     new double[]{1.5, 6.0, 4},
                     new VoltTable(new VoltTable.ColumnInfo("foo", VoltType.BIGINT)),
@@ -783,7 +792,8 @@ public class TestJSONInterface extends TestCase {
             // try to pass a string as a date
             java.sql.Timestamp ts = new java.sql.Timestamp(System.currentTimeMillis());
             ts.setNanos(123456000);
-            pset = ParameterSet.fromArrayNoCopy(1,
+            pset = ParameterSet.fromArrayNoCopy(
+                    1,
                     5,
                     new double[]{1.5, 6.0, 4},
                     new VoltTable(new VoltTable.ColumnInfo("foo", VoltType.BIGINT)),
@@ -800,7 +810,8 @@ public class TestJSONInterface extends TestCase {
             assertEquals(123456, response.results[3].getTimestampAsTimestamp(0).getTime() % 1000000);
 
             // now try a null short value sent as a int  (param expects short)
-            pset = ParameterSet.fromArrayNoCopy(1,
+            pset = ParameterSet.fromArrayNoCopy(
+                    1,
                     VoltType.NULL_SMALLINT,
                     new double[]{1.5, 6.0, 4},
                     new VoltTable(new VoltTable.ColumnInfo("foo", VoltType.BIGINT)),
@@ -814,7 +825,8 @@ public class TestJSONInterface extends TestCase {
             assertFalse(response.status == ClientResponse.SUCCESS);
 
             // now try an out of range long value (param expects short)
-            pset = ParameterSet.fromArrayNoCopy(1,
+            pset = ParameterSet.fromArrayNoCopy(
+                    1,
                     Long.MAX_VALUE - 100,
                     new double[]{1.5, 6.0, 4},
                     new VoltTable(new VoltTable.ColumnInfo("foo", VoltType.BIGINT)),
@@ -828,7 +840,8 @@ public class TestJSONInterface extends TestCase {
             assertFalse(response.status == ClientResponse.SUCCESS);
 
             // now try bigdecimal with small value
-            pset = ParameterSet.fromArrayNoCopy(1,
+            pset = ParameterSet.fromArrayNoCopy(
+                    1,
                     4,
                     new double[]{1.5, 6.0, 4},
                     new VoltTable(new VoltTable.ColumnInfo("foo", VoltType.BIGINT)),
@@ -843,7 +856,8 @@ public class TestJSONInterface extends TestCase {
             assertEquals(ClientResponse.SUCCESS, response.status);
 
             // now try null
-            pset = ParameterSet.fromArrayNoCopy(1,
+            pset = ParameterSet.fromArrayNoCopy(
+                    1,
                     4,
                     new double[]{1.5, 6.0, 4},
                     new VoltTable(new VoltTable.ColumnInfo("foo", VoltType.BIGINT)),

@@ -21,7 +21,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 /**
  * Message from a client interface to an initiator, instructing the
@@ -48,13 +51,20 @@ public class DumpMessage extends VoltMessage
     {
         buf.put(VoltDbMessageFactory.DUMP);
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
+    protected void initFromContainer(SharedBBContainer container) {
     }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+    }
+
+    @Override
+    public void discard() {}
 
     @Override
     public String toString() {

@@ -16,10 +16,16 @@
  */
 package org.voltcore.messaging;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
-import com.google_voltpatches.common.collect.ImmutableList;
+
 import org.apache.zookeeper_voltpatches.data.Id;
 import org.apache.zookeeper_voltpatches.server.Request;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+
+import com.google_voltpatches.common.collect.ImmutableList;
 
 public class AgreementTaskMessage extends VoltMessage {
 
@@ -38,7 +44,9 @@ public class AgreementTaskMessage extends VoltMessage {
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) {
+    public void initFromContainer(SharedBBContainer container) {}
+
+    private void initFromBuffer(ByteBuffer buf) {
         m_txnId = buf.getLong();
         m_initiatorHSId = buf.getLong();
         m_lastSafeTxnId = buf.getLong();
@@ -58,7 +66,12 @@ public class AgreementTaskMessage extends VoltMessage {
         }
 
         m_request = new Request(null, sessionId, cxid, type, requestBuffer, ImmutableList.<Id>of());
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromBuffer(handler.getNextBBMessage(inputStream));
     }
 
     @Override
@@ -90,8 +103,10 @@ public class AgreementTaskMessage extends VoltMessage {
             buf.putInt(-1);
         }
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
+    @Override
+    public void discard() {}
 }

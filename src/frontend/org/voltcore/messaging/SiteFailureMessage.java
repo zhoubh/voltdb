@@ -26,7 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 import com.google_voltpatches.common.collect.ImmutableList;
 import com.google_voltpatches.common.collect.ImmutableMap;
@@ -66,7 +69,8 @@ public class SiteFailureMessage extends VoltMessage {
     }
 
     @Override
-    protected void initFromBuffer(ByteBuffer buf) {
+    public void initFromContainer(SharedBBContainer container) {
+        ByteBuffer buf = container.b();
         int srvrcnt = buf.getInt();
         int safecnt = buf.getInt();
         int dcncnt  = buf.getInt();
@@ -88,15 +92,22 @@ public class SiteFailureMessage extends VoltMessage {
         }
         bldr.initialize(this);
 
-        assert(m_subject != Subject.SITE_FAILURE_UPDATE.getId()
-                || buf.capacity() == buf.position());
+        if (getSubject() == Subject.SITE_FAILURE_UPDATE.getId()) {
+            assert(buf.limit() == buf.position());
+            container.discard();
+        }
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
     }
 
     @Override
     public void flattenToBuffer(ByteBuffer buf) throws IOException {
         flattenToBuffer(buf, VoltMessageFactory.SITE_FAILURE_UPDATE_ID);
         buf.limit(buf.position());
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
     }
 
     protected void flattenToBuffer(ByteBuffer buf, byte msgId) {
@@ -169,6 +180,9 @@ public class SiteFailureMessage extends VoltMessage {
     public Set<Long> getObservedFailedSites() {
         return Sets.filter(m_failed, not(in(m_survivors)));
     }
+
+    @Override
+    public void discard() {}
 
     @Override
     public String toString() {

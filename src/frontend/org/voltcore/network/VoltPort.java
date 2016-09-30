@@ -20,7 +20,6 @@ package org.voltcore.network;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.Future;
@@ -167,15 +166,14 @@ public class VoltPort implements Connection
                 final int maxRead = m_handler.getMaxRead();
                 if (maxRead > 0) {
                     fillReadStream( maxRead);
-                    ByteBuffer message;
 
                     /*
                      * Process all the buffered bytes and retrieve as many messages as possible
                      * and pass them off to the input handler.
                      */
                     try {
-                        while ((message = m_handler.retrieveNextMessage( readStream() )) != null) {
-                            m_handler.handleMessage( message, this);
+                        while (m_handler.nextMessageReady(readStream())) {
+                            m_handler.handleMessage(m_readStream, this);
                             m_messagesRead++;
                         }
                     }

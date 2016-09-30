@@ -162,6 +162,7 @@ public class RepairLog
             m_lastSpHandle = m.getSpHandle();
             truncate(m.getTruncationHandle(), IS_SP);
             m_logSP.add(new Item(IS_SP, m, m.getSpHandle(), m.getTxnId()));
+            m.implicitReference();
         } else if (msg instanceof FragmentTaskMessage) {
             final FragmentTaskMessage m = (FragmentTaskMessage) msg;
 
@@ -174,6 +175,7 @@ public class RepairLog
             // only log the first fragment of a procedure (and handle 1st case)
             if (m.getTxnId() > m_lastMpHandle || m_lastMpHandle == Long.MAX_VALUE) {
                 m_logMP.add(new Item(IS_MP, m, m.getSpHandle(), m.getTxnId()));
+                m.implicitReference();
                 m_lastMpHandle = m.getTxnId();
                 m_lastSpHandle = m.getSpHandle();
             }
@@ -236,6 +238,7 @@ public class RepairLog
         RepairLog.Item item = null;
         while ((item = deq.peek()) != null) {
             if (item.canTruncate(handle)) {
+                item.m_msg.discard();
                 deq.poll();
             } else {
                 break;

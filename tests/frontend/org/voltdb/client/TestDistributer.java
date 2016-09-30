@@ -40,11 +40,12 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 import org.voltcore.network.Connection;
+import org.voltcore.network.NIOReadStream;
 import org.voltcore.network.QueueMonitor;
 import org.voltcore.network.VoltNetworkPool;
 import org.voltcore.network.VoltProtocolHandler;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.SPIfromSerializedBuffer;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 
@@ -65,10 +66,11 @@ public class TestDistributer extends TestCase {
         }
 
         @Override
-        public void handleMessage(ByteBuffer message, Connection c) {
+        public void handleMessage(NIOReadStream inputStream, Connection c) {
             try {
-                StoredProcedureInvocation spi = new StoredProcedureInvocation();
-                spi.initFromBuffer(message);
+                ByteBuffer message = getNextBBMessage(inputStream);
+                SPIfromSerializedBuffer spi = new SPIfromSerializedBuffer();
+                spi.initFromByteBuffer(message);
 
                 final String proc = spi.getProcName();
 

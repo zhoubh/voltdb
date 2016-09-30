@@ -228,15 +228,14 @@ public class PicoNetwork implements Runnable, Connection, IOStatsIntf
     private void dispatchReadStream() throws IOException {
         if (readyForRead()) {
             if (fillReadStream() > 0) m_hadWork = true;
-            ByteBuffer message;
 
             /*
              * Process all the buffered bytes and retrieve as many messages as possible
              * and pass them off to the input handler.
              */
             try {
-                while ((message = m_ih.retrieveNextMessage( m_readStream )) != null) {
-                    m_ih.handleMessage( message, this);
+                while (m_ih.nextMessageReady(m_readStream)) {
+                    m_ih.handleMessage(m_readStream, this);
                     m_messagesRead++;
                 }
             }

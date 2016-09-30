@@ -17,10 +17,13 @@
 
 package org.voltdb.messaging;
 
-import org.voltcore.messaging.VoltMessage;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 /**
  * Sent from SPIs to replicas when transactions fully commits on all replicas.
@@ -48,11 +51,18 @@ public class RepairLogTruncationMessage extends VoltMessage {
     }
 
     @Override
+    public void initFromContainer(SharedBBContainer container) {}
+
     protected void initFromBuffer(ByteBuffer buf) throws IOException
     {
         m_handle = buf.getLong();
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromBuffer(handler.getNextBBMessage(inputStream));
     }
 
     @Override
@@ -61,7 +71,10 @@ public class RepairLogTruncationMessage extends VoltMessage {
         buf.put(VoltDbMessageFactory.IV2_REPAIR_LOG_TRUNCATION);
         buf.putLong(m_handle);
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
+
+    @Override
+    public void discard() {}
 }

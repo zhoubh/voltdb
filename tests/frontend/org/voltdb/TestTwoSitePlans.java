@@ -197,6 +197,8 @@ public class TestTwoSitePlans extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(insertFrag) },
                 null,
                 new ParameterSet[] { params },
+                new boolean[] { false },
+                null,
                 new String[] { selectStmt.getSqltext() },
                 1,
                 1,
@@ -213,6 +215,8 @@ public class TestTwoSitePlans extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(insertFrag) },
                 null,
                 new ParameterSet[] { params },
+                new boolean[] { false },
+                null,
                 new String[] { insertStmt.getSqltext() },
                 2,
                 2,
@@ -232,6 +236,8 @@ public class TestTwoSitePlans extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectBottomFrag) },
                 null,
                 new ParameterSet[] { params },
+                new boolean[] { false },
+                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, Long.MAX_VALUE)[0];
         try {
@@ -246,6 +252,8 @@ public class TestTwoSitePlans extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectBottomFrag) },
                 null,
                 new ParameterSet[] { params },
+                new boolean[] { false },
+                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, Long.MAX_VALUE)[0];
         try {
@@ -263,6 +271,8 @@ public class TestTwoSitePlans extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectTopFrag) },
                 new long[] { outDepId },
                 new ParameterSet[] { params },
+                new boolean[] { false },
+                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, Long.MAX_VALUE)[0];
         try {

@@ -167,6 +167,7 @@ public class MpTransactionState extends TransactionState
             long[] non_local_hsids = new long[m_useHSIds.size()];
             for (int i = 0; i < m_useHSIds.size(); i++) {
                 non_local_hsids[i] = m_useHSIds.get(i);
+                m_remoteWork.implicitReference();
             }
             // send to all non-local sites
             if (non_local_hsids.length > 0) {

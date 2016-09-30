@@ -62,7 +62,8 @@ public class TestPicoNetwork extends TestCase {
         }
 
         @Override
-        public void handleMessage(ByteBuffer message, Connection c) {
+        public void handleMessage(NIOReadStream inputStream, Connection c) {
+            ByteBuffer message = getNextBBMessage(inputStream);
             messages.offer(message);
         }
 

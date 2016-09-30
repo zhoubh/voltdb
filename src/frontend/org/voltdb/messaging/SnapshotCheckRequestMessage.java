@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 import com.google_voltpatches.common.base.Charsets;
 
@@ -51,10 +54,17 @@ public class SnapshotCheckRequestMessage extends VoltMessage {
     }
 
     @Override
-    protected void initFromBuffer(ByteBuffer buf) throws IOException
+    protected void initFromContainer(SharedBBContainer container) throws IOException
     {
+        ByteBuffer buf = container.b();
         m_requestJson = new byte[buf.getInt()];
         buf.get(m_requestJson);
+        container.discard();
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
     }
 
     @Override
@@ -64,4 +74,7 @@ public class SnapshotCheckRequestMessage extends VoltMessage {
         buf.putInt(m_requestJson.length);
         buf.put(m_requestJson);
     }
+
+    @Override
+    public void discard() {}
 }

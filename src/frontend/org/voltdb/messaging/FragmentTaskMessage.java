@@ -30,7 +30,10 @@ import org.voltcore.logging.Level;
 import org.voltcore.logging.VoltLogger;
 import org.voltcore.messaging.Subject;
 import org.voltcore.messaging.TransactionInfoBaseMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltDB;
 import org.voltdb.client.BatchTimeoutOverrideType;
@@ -135,7 +138,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     boolean m_emptyForRestart = false;
 
     int m_inputDepCount = 0;
-    Iv2InitiateTaskMessage m_initiateTask;
+    private Iv2InitiateTaskMessage m_initiateTask;
     ByteBuffer m_initiateTaskBuffer;
     // Partitions involved in this multipart, set in the first fragment
     Set<Integer> m_involvedPartitions = ImmutableSet.of();
@@ -215,7 +218,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     }
 
     public void setProcedureName(String procedureName) {
-        Iv2InitiateTaskMessage it = getInitiateTask();
+        Iv2InitiateTaskMessage it = m_initiateTask;
         if (it != null) {
             assert(it.getStoredProcedureName().equals(procedureName));
         }
@@ -467,6 +470,12 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         return m_initiateTask;
     }
 
+    public void implicitReference() {
+        if (m_initiateTask != null) {
+            m_initiateTask.implicitReference();
+        }
+    }
+
     public Set<Integer> getInvolvedPartitions() { return m_involvedPartitions; }
 
     public byte[] getPlanHash(int index) {
@@ -651,7 +660,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     public void flattenToBuffer(ByteBuffer buf) throws IOException
     {
         flattenToSubMessageBuffer(buf);
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
@@ -789,22 +798,29 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException
+    public void initFromContainer(SharedBBContainer container) throws IOException
     {
-        initFromSubMessageBuffer(buf);
-        assert(buf.capacity() == buf.position());
+        initFromSubMessageBuffer(container);
+        assert(container.b().capacity() == container.b().position());
+        container.discard();
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromContainer(handler.getNextHBBMessage(inputStream));
     }
 
     /**
      * Used directly by {@link FragmentTaskLogMessage} to embed FTMs
      */
-    void initFromSubMessageBuffer(ByteBuffer buf) throws IOException
+    void initFromSubMessageBuffer(SharedBBContainer container) throws IOException
     {
         // See Serialization Format comment above getSerializedSize().
 
-        super.initFromBuffer(buf);
+        super.initFromContainer(container);
 
         // Header block
+        ByteBuffer buf = container.b();
         short fragCount = buf.getShort();
         assert(fragCount > 0);
         short unplannedCount = buf.getShort();
@@ -900,7 +916,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
             // way we do it here. So read the message type byte...
             byte messageType = buf.get();
             assert(messageType == VoltDbMessageFactory.IV2_INITIATE_TASK_ID);
-            message.initFromBuffer(buf);
+            message.initFromContainer(container);
             m_initiateTask = message;
             if (m_initiateTask != null && m_initiateTaskBuffer == null) {
                 m_initiateTaskBuffer = ByteBuffer.allocate(m_initiateTask.getSerializedSize());
@@ -935,6 +951,13 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
                 item.m_stmtText = new byte[stmtTextLength];
                 buf.get(item.m_stmtText);
             }
+        }
+    }
+
+    @Override
+    public void discard() {
+        if (m_initiateTask != null) {
+            m_initiateTask.discard();
         }
     }
 

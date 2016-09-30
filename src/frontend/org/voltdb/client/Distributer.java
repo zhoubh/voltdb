@@ -48,10 +48,13 @@ import java.util.concurrent.locks.LockSupport;
 
 import javax.security.auth.Subject;
 
+import jsr166y.ThreadLocalRandom;
+
 import org.cliffc_voltpatches.high_scale_lib.NonBlockingHashMap;
 import org.json_voltpatches.JSONException;
 import org.json_voltpatches.JSONObject;
 import org.voltcore.network.Connection;
+import org.voltcore.network.NIOReadStream;
 import org.voltcore.network.QueueMonitor;
 import org.voltcore.network.VoltNetworkPool;
 import org.voltcore.network.VoltNetworkPool.IOStatsIntf;
@@ -67,8 +70,6 @@ import org.voltdb.common.Constants;
 import com.google_voltpatches.common.base.Throwables;
 import com.google_voltpatches.common.collect.ImmutableList;
 import com.google_voltpatches.common.collect.ImmutableSet;
-
-import jsr166y.ThreadLocalRandom;
 
 /**
  *   De/multiplexes transactions across a cluster
@@ -613,7 +614,8 @@ class Distributer {
         }
 
         @Override
-        public void handleMessage(ByteBuffer buf, Connection c) {
+        public void handleMessage(NIOReadStream inputStream, Connection c) {
+            ByteBuffer buf = getNextBBMessage(inputStream);
             long nowNanos = System.nanoTime();
             ClientResponseImpl response = new ClientResponseImpl();
             try {

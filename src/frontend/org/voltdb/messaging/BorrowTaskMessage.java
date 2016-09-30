@@ -25,9 +25,15 @@ import java.util.Map;
 import org.voltcore.logging.VoltLogger;
 import org.voltcore.messaging.Subject;
 import org.voltcore.messaging.TransactionInfoBaseMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltdb.VoltTable;
 import org.voltdb.iv2.TxnEgo;
+
+import com.google_voltpatches.common.collect.ImmutableList;
+import com.google_voltpatches.common.collect.ImmutableMap;
 
 import com.google_voltpatches.common.collect.ImmutableList;
 import com.google_voltpatches.common.collect.ImmutableMap;
@@ -95,10 +101,19 @@ public class BorrowTaskMessage extends TransactionInfoBaseMessage
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
-        throw new RuntimeException("Preparing to serialize BorrowTaskMessage, " +
+    public void initFromContainer(SharedBBContainer container) throws IOException {
+        throw new RuntimeException("Preparing to deserialize BorrowTaskMessage, " +
                                    "which should never happen");
     }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        throw new RuntimeException("Preparing to deserialize BorrowTaskMessage, " +
+                "which should never happen");
+    }
+
+    @Override
+    public void discard() {}
 
     @Override
     public String toString() {

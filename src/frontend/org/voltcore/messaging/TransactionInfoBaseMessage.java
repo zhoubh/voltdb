@@ -20,6 +20,8 @@ package org.voltcore.messaging;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+
 
 /**
  * Message from an initiator to an execution site, informing the
@@ -161,7 +163,8 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
+    public void initFromContainer(SharedBBContainer container) throws IOException {
+        ByteBuffer buf = container.b();
         m_initiatorHSId = buf.getLong();
         m_coordinatorHSId = buf.getLong();
         m_txnId = buf.getLong();

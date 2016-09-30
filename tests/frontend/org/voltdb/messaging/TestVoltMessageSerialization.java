@@ -31,10 +31,12 @@ import junit.framework.TestCase;
 import org.voltcore.messaging.HeartbeatMessage;
 import org.voltcore.messaging.HeartbeatResponseMessage;
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.utils.HBBPool;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltcore.utils.Pair;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
-import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.SPIfromParameterArray;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.client.ClientResponse;
@@ -45,26 +47,26 @@ import com.google_voltpatches.common.collect.Sets;
 public class TestVoltMessageSerialization extends TestCase {
 
     VoltMessage checkVoltMessage(VoltMessage msg) throws IOException {
-        ByteBuffer buf1 = ByteBuffer.allocate(msg.getSerializedSize());
-        msg.flattenToBuffer(buf1);
-        buf1.flip();
+        SharedBBContainer container1 = HBBPool.allocateHeapAndPool(msg.getSerializedSize());
+        msg.flattenToBuffer(container1.b());
+        container1.b().flip();
 
         VoltDbMessageFactory vdbmf = new VoltDbMessageFactory();
 
-        VoltMessage msg2 = vdbmf.createMessageFromBuffer(buf1, -1);
-        ByteBuffer buf2 = ByteBuffer.allocate(msg2.getSerializedSize());
-        msg2.flattenToBuffer(buf2);
-        buf1.rewind();
-        buf2.rewind();
+        VoltMessage msg2 = vdbmf.createMessageFromContainer(container1, -1);
+        SharedBBContainer container2 = HBBPool.allocateHeapAndPool(msg2.getSerializedSize());
+        msg2.flattenToBuffer(container2.b());
+        container1.b().rewind();
+        container2.b().rewind();
 
-        assertEquals(buf1.remaining(), buf2.remaining());
-        assertTrue(buf1.compareTo(buf2) == 0);
+        assertEquals(container1.b().remaining(), container2.b().remaining());
+        assertTrue(container1.b().compareTo(container2.b()) == 0);
 
         return msg2;
     }
 
     public void testInitiateTask() throws IOException {
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("johnisgreat");
         spi.setParams(57, "gooniestoo", "dudemandude");
@@ -82,7 +84,7 @@ public class TestVoltMessageSerialization extends TestCase {
     }
 
     public void testIv2InitiateTask() throws IOException {
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("johnisgreat");
         spi.setParams(57, "gooniestoo", "dudemandude");
@@ -109,7 +111,7 @@ public class TestVoltMessageSerialization extends TestCase {
     }
 
     public void testInitiateResponse() throws IOException {
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("elmerfudd");
         spi.setParams(57, "wrascallywabbit");
@@ -132,7 +134,7 @@ public class TestVoltMessageSerialization extends TestCase {
     }
 
     public void testInitiateResponseForIv2() throws IOException {
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("elmerfudd");
         spi.setParams(57, "wrascallywabbit");
@@ -156,7 +158,7 @@ public class TestVoltMessageSerialization extends TestCase {
     }
 
     public void testMispartitionedResponse() throws IOException {
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("elmerfudd");
         spi.setParams(57, "wrascallywabbit");
@@ -259,7 +261,7 @@ public class TestVoltMessageSerialization extends TestCase {
         ft.setFragmentTaskType(FragmentTaskMessage.SYS_PROC_PER_PARTITION);
 
         // The initiate task.
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("johnisgreat");
         spi.setParams(57, "gooniestoo", "dudemandude");
@@ -406,7 +408,7 @@ public class TestVoltMessageSerialization extends TestCase {
     public void testIv2RepairLogResponseMessage() throws Exception
     {
         // make a first itask
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setClientHandle(25);
         spi.setProcName("johnisgreat");
         spi.setParams(57, "gooniestoo", "dudemandude");

@@ -78,14 +78,14 @@ public class InternalClientResponseAdapter implements Connection, WriteStream {
         private final InternalConnectionStatsCollector m_statsCollector;
         private final int m_partition;
         private final InternalAdapterTaskAttributes m_kattrs;
-        private final StoredProcedureInvocation m_task;
+        private final SPIfromSerialization m_task;
         private final Procedure m_proc;
         private final AuthSystem.AuthUser m_user;
         private final String m_procName;
         public InternalCallback(
                 final InternalAdapterTaskAttributes kattrs,
                 Procedure proc,
-                StoredProcedureInvocation task,
+                SPIfromSerialization task,
                 String procName,
                 int partition,
                 ProcedureCallback cb,
@@ -165,7 +165,7 @@ public class InternalClientResponseAdapter implements Connection, WriteStream {
             final Procedure catProc,
             final ProcedureCallback proccb,
             final InternalConnectionStatsCollector statsCollector,
-            final StoredProcedureInvocation task,
+            final SPIfromSerialization task,
             final AuthSystem.AuthUser user,
             final int partition, final long nowNanos) {
 

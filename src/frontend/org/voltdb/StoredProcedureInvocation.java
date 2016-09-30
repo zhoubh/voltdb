@@ -18,14 +18,8 @@
 package org.voltdb;
 
 import java.io.IOException;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
 
-import org.json_voltpatches.JSONString;
-import org.json_voltpatches.JSONStringer;
 import org.voltcore.logging.VoltLogger;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.BatchTimeoutOverrideType;
@@ -47,79 +41,51 @@ import org.voltdb.utils.SerializationHelper;
  * is changed. See getSerializedSize().
  *
  */
-public class StoredProcedureInvocation implements JSONString {
-    private static final VoltLogger hostLog = new VoltLogger("HOST");
+public abstract class StoredProcedureInvocation {
+    protected static final VoltLogger hostLog = new VoltLogger("HOST");
 
     public static final byte CURRENT_MOST_RECENT_VERSION = ProcedureInvocationType.VERSION2.getValue();
 
     ProcedureInvocationType type = ProcedureInvocationType.ORIGINAL;
-    private String procName = null;
-    private byte m_procNameBytes[] = null;
+    protected String procName = null;
+    protected byte m_procNameBytes[] = null;
+    protected byte m_extensionCount = 0;
 
     public static final long UNITIALIZED_ID = -1L;
 
-    /*
-     * This ByteBuffer is accessed from multiple threads concurrently.
-     * Always duplicate it before reading
-     */
-    private ByteBuffer serializedParams = null;
+    protected Integer serializedParamSize = null;
 
-    FutureTask<ParameterSet> params;
 
     /** A descriptor provided by the client, opaque to the server,
         returned to the client in the ClientResponse */
     long clientHandle = -1;
 
-    private int batchTimeout = BatchTimeoutOverrideType.NO_TIMEOUT;
+    protected int batchTimeout = BatchTimeoutOverrideType.NO_TIMEOUT;
 
-    public StoredProcedureInvocation getShallowCopy()
-    {
-        StoredProcedureInvocation copy = new StoredProcedureInvocation();
-        copy.type = type;
-        copy.clientHandle = clientHandle;
-        copy.params = params;
-        copy.procName = procName;
-        copy.m_procNameBytes = m_procNameBytes;
-        if (serializedParams != null)
-        {
-            copy.serializedParams = serializedParams.duplicate();
-        }
-        else
-        {
-            copy.serializedParams = null;
-        }
+    /**
+     * Serialize and then deserialize an invocation so that it has serializedParams set for command logging if the
+     * invocation is sent to a local site.
+     * @return The round-tripped version of the invocation
+     * @throws IOException
+     */
+    public abstract SPIfromSerialization roundTripForCL() throws IOException;
 
-        copy.batchTimeout = batchTimeout;
-
-        return copy;
-    }
+    public abstract StoredProcedureInvocation getShallowCopy();
 
     public void setProcName(String name) {
         if (name == null) {
             throw new IllegalArgumentException("SPI setProcName(String name) doesn't accept NULL.");
         }
         procName = name;
-        m_procNameBytes = null;
+        m_procNameBytes = procName.getBytes(Constants.UTF8ENCODING);
     }
 
     public void setProcName(byte[] name) {
         if (name == null) {
             throw new IllegalArgumentException("SPI setProcName(byte[] name) doesn't accept NULL.");
         }
-        procName = null;
         m_procNameBytes = name;
-    }
-
-    public void setParams(final Object... parameters) {
-        // convert the params to the expected types
-        params = new FutureTask<ParameterSet>(new Callable<ParameterSet>() {
-            @Override
-            public ParameterSet call() {
-                ParameterSet params = ParameterSet.fromArrayWithCopy(parameters);
-                return params;
-            }
-        });
-        serializedParams = null;
+        procName = new String(m_procNameBytes, Constants.UTF8ENCODING);
     }
 
     public ProcedureInvocationType getType() {
@@ -127,37 +93,14 @@ public class StoredProcedureInvocation implements JSONString {
     }
 
     public String getProcName() {
-        if (procName == null) {
-            assert(m_procNameBytes != null);
-            procName = new String(m_procNameBytes, Constants.UTF8ENCODING);
-        }
         return procName;
     }
 
     public byte[] getProcNameBytes() {
-        if (m_procNameBytes == null) {
-            assert(procName != null);
-            m_procNameBytes = procName.getBytes(Constants.UTF8ENCODING);
-        }
         return m_procNameBytes;
     }
 
-    public ParameterSet getParams() {
-        params.run();
-        try {
-            return params.get();
-        } catch (InterruptedException e) {
-            VoltDB.crashLocalVoltDB("Interrupted while deserializing a parameter set", false, e);
-        } catch (ExecutionException e) {
-            // Don't rethrow Errors as RuntimeExceptions because we will eat their
-            // delicious goodness later
-            if (e.getCause() != null && e.getCause() instanceof Error) {
-                throw (Error)e.getCause();
-            }
-            throw new RuntimeException(e);
-        }
-        return null;
-    }
+    public abstract ParameterSet getParams();
 
     public void setClientHandle(long aHandle) {
         clientHandle = aHandle;
@@ -167,19 +110,7 @@ public class StoredProcedureInvocation implements JSONString {
         return clientHandle;
     }
 
-    /** Read into an serialized parameter buffer to extract a single parameter */
-    Object getParameterAtIndex(int partitionIndex) {
-        try {
-            if (serializedParams != null) {
-                return ParameterSet.getParameterAtIndex(partitionIndex, serializedParams.duplicate());
-            } else {
-                return params.get().getParam(partitionIndex);
-            }
-        }
-        catch (Exception ex) {
-            throw new RuntimeException("Invalid partitionIndex: " + partitionIndex, ex);
-        }
-    }
+    abstract Object getParameterAtIndex(int partitionIndex);
 
     /**
      *
@@ -194,26 +125,6 @@ public class StoredProcedureInvocation implements JSONString {
         // get batch extension size
         // 6 is one byte for ext type, one for size, and 4 for integer value
         int batchExtensionSize = batchTimeout != BatchTimeoutOverrideType.NO_TIMEOUT ? 6 : 0;
-
-        // get params size
-        int serializedParamSize = 0;
-        if (serializedParams != null) {
-            serializedParamSize = serializedParams.remaining();
-        }
-        else if (params != null) {
-            ParameterSet pset = getParams();
-            assert(pset != null);
-            serializedParamSize = pset.getSerializedSize();
-            if ((pset.size() > 0) && (serializedParamSize <= 2)) {
-                throw new IllegalStateException(String.format("Parameter set for invocation " +
-                        "%s doesn't have the proper size (currently = %s)",
-                        getProcName(), serializedParamSize));
-            }
-        }
-        else {
-            // illegal state
-            throw new IllegalStateException("StoredProcedureInvocation instance params in invalid state.");
-        }
 
         // compute the size
         int size =
@@ -260,14 +171,18 @@ public class StoredProcedureInvocation implements JSONString {
         return metadataSize;
     }
 
-    public void flattenToBuffer(ByteBuffer buf) throws IOException
-    {
-        assert((params != null) || (serializedParams != null));
 
-        // for self-check assertion
-        int startPosition = buf.position();
+    protected void commonShallowCopy(StoredProcedureInvocation copy) {
+        copy.type = type;
+        copy.clientHandle = clientHandle;
+        copy.procName = procName;
+        copy.m_procNameBytes = m_procNameBytes;
+        copy.m_extensionCount = m_extensionCount;
+        copy.batchTimeout = batchTimeout;
+    }
 
-        // write current format version only (we read all old formats)
+    protected void commonFlattenToBuffer(ByteBuffer buf) throws IOException {
+     // write current format version only (we read all old formats)
         buf.put(CURRENT_MOST_RECENT_VERSION);
 
         SerializationHelper.writeVarbinary(getProcNameBytes(), buf);
@@ -282,152 +197,13 @@ public class StoredProcedureInvocation implements JSONString {
             buf.put((byte) 1);
             ProcedureInvocationExtensions.writeBatchTimeoutWithTypeByte(buf, batchTimeout);
         }
-
-        if (serializedParams != null)
-        {
-            if (serializedParams.hasArray())
-            {
-                // if position can be non-zero, then the dup/rewind logic below
-                // would be wrong?
-                assert(serializedParams.position() == 0);
-                buf.put(serializedParams.array(),
-                        serializedParams.position() + serializedParams.arrayOffset(),
-                        serializedParams.remaining());
-            }
-            else
-            {
-                // duplicate for thread-safety
-                assert(serializedParams.position() == 0);
-                ByteBuffer dup = serializedParams.duplicate();
-                dup.rewind();
-                buf.put(dup);
-            }
-        }
-        else if (params != null) {
-            try {
-                getParams().flattenToBuffer(buf);
-            }
-            catch (BufferOverflowException e) {
-                hostLog.info("SP \"" + procName + "\" has thrown BufferOverflowException");
-                hostLog.info(toString());
-                throw e;
-            }
-        }
-
-        int len = buf.position() - startPosition;
-        assert(len == getSerializedSize());
     }
 
-    public void initFromBuffer(ByteBuffer buf) throws IOException
-    {
-        byte version = buf.get();// version number also embeds the type
-        // this will throw for an unexpected type, like the DRv1 type, for example
-        type = ProcedureInvocationType.typeFromByte(version);
-        m_procNameBytes = null;
+    public abstract void flattenToBuffer(ByteBuffer buf) throws IOException;
 
-        switch (type) {
-            case ORIGINAL:
-                initOriginalFromBuffer(buf);
-                break;
-            case VERSION1:
-                initVersion1FromBuffer(buf);
-                break;
-            case VERSION2:
-                initVersion2FromBuffer(buf);
-                break;
-        }
+    public abstract void implicitReference();
 
-        // ensure extension count is correct
-        setBatchTimeout(batchTimeout);
-    }
-
-    private void initOriginalFromBuffer(ByteBuffer buf) throws IOException {
-        byte[] procNameBytes = SerializationHelper.getVarbinary(buf);
-        if (procNameBytes == null) {
-            throw new IOException("Procedure name cannot be null in invocation deserialization.");
-        }
-        if (procNameBytes.length == 0) {
-            throw new IOException("Procedure name cannot be length zero in invocation deserialization.");
-        }
-        setProcName(procNameBytes);
-        clientHandle = buf.getLong();
-        // do not deserialize parameters in ClientInterface context
-        serializedParams = buf.slice();
-        final ByteBuffer duplicate = serializedParams.duplicate();
-        params = new FutureTask<ParameterSet>(new Callable<ParameterSet>() {
-            @Override
-            public ParameterSet call() throws Exception {
-                return ParameterSet.fromByteBuffer(duplicate);
-            }
-        });
-    }
-
-    private void initVersion1FromBuffer(ByteBuffer buf) throws IOException {
-        BatchTimeoutOverrideType batchTimeoutType = BatchTimeoutOverrideType.typeFromByte(buf.get());
-        if (batchTimeoutType == BatchTimeoutOverrideType.NO_OVERRIDE_FOR_BATCH_TIMEOUT) {
-            batchTimeout = BatchTimeoutOverrideType.NO_TIMEOUT;
-        } else {
-            batchTimeout = buf.getInt();
-            // Client side have already checked the batchTimeout value, but,
-            // on server side, we should check non-negative batchTimeout value again
-            // in case of someone is using a non-standard client.
-            if (batchTimeout < 0) {
-                throw new IllegalArgumentException("Timeout value can't be negative." );
-            }
-        }
-
-        // the rest of the format is the same as the original
-        initOriginalFromBuffer(buf);
-    }
-
-    private void initVersion2FromBuffer(ByteBuffer buf) throws IOException {
-        byte[] procNameBytes = SerializationHelper.getVarbinary(buf);
-        if (procNameBytes == null) {
-            throw new IOException("Procedure name cannot be null in invocation deserialization.");
-        }
-        if (procNameBytes.length == 0) {
-            throw new IOException("Procedure name cannot be length zero in invocation deserialization.");
-        }
-        setProcName(procNameBytes);
-
-        clientHandle = buf.getLong();
-
-        // default values for extensions
-        batchTimeout = BatchTimeoutOverrideType.NO_TIMEOUT;
-        // read any invocation extensions and skip any we don't recognize
-        int extensionCount = buf.get();
-
-        // this limits things a bit, but feels worth it in terms of being a possible way
-        // to stumble on a bug
-        if (extensionCount < 0) {
-            throw new IOException("SPI extension count was < 0: possible corrupt network data.");
-        }
-        if (extensionCount > 30) {
-            throw new IOException("SPI extension count was > 30: possible corrupt network data.");
-        }
-
-        for (int i = 0; i < extensionCount; ++i) {
-            final byte type = ProcedureInvocationExtensions.readNextType(buf);
-            switch (type) {
-            case ProcedureInvocationExtensions.BATCH_TIMEOUT:
-                batchTimeout = ProcedureInvocationExtensions.readBatchTimeout(buf);
-                break;
-            default:
-                ProcedureInvocationExtensions.skipUnknownExtension(buf);
-                break;
-            }
-        }
-
-        // do not deserialize parameters in ClientInterface context
-        serializedParams = buf.slice();
-        final ByteBuffer duplicate = serializedParams.duplicate();
-        params = new FutureTask<ParameterSet>(new Callable<ParameterSet>() {
-            @Override
-            public ParameterSet call() throws Exception {
-                return ParameterSet.fromByteBuffer(duplicate);
-            }
-        });
-    }
+    public abstract void discard();
 
     @Override
     public String toString() {
@@ -447,51 +223,8 @@ public class StoredProcedureInvocation implements JSONString {
         return retval;
     }
 
-    /*
-     * Store a copy of the parameters to the procedure in serialized form.
-     * In a cluster there is no reason to throw away the serialized bytes
-     * because it will be forwarded in most cases and there is no need to repeat the work.
-     * Command logging also takes advantage of this to avoid reserializing the parameters.
-     * In some cases the params will never have been serialized (null) because
-     * the SPI is generated internally. A duplicate view of the buffer is returned
-     * to make access thread safe. Can't return a read only view because ByteBuffer.array()
-     * is invoked by the command log.
-     */
-    public ByteBuffer getSerializedParams() {
-        if (serializedParams != null) {
-            return serializedParams.duplicate();
-        }
-        return null;
-    }
-
-    public void setSerializedParams(ByteBuffer serializedParams) {
-        this.serializedParams = serializedParams;
-    }
-
-    @Override
-    public String toJSONString() {
-        params.run();
-        JSONStringer js = new JSONStringer();
-        try {
-            js.object();
-            js.key("proc_name");
-            js.value(procName);
-            js.key("client_handle");
-            js.value(clientHandle);
-            // @ApplyBinaryLog is exempted because it's often
-            // got a large binary payload and this is annoying for testing
-            // also users shouldn't ever directly call it
-            if (!procName.startsWith("@ApplyBinaryLog")) {
-                js.key("parameters");
-                js.value(params.get());
-            }
-            js.endObject();
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Failed to serialize an invocation to JSON.", e);
-        }
-        return js.toString();
+    public int getSerializedParamSize() {
+        return serializedParamSize;
     }
 
     public int getBatchTimeout() {
@@ -500,5 +233,6 @@ public class StoredProcedureInvocation implements JSONString {
 
     public void setBatchTimeout(int timeout) {
         batchTimeout = timeout;
+        m_extensionCount = (byte) (batchTimeout == BatchTimeoutOverrideType.NO_TIMEOUT ? 0 : 1);
     }
 }

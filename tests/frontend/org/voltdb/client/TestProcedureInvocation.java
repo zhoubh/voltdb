@@ -25,10 +25,12 @@ package org.voltdb.client;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 
 import junit.framework.TestCase;
 
+import org.voltcore.utils.HBBPool;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+import org.voltdb.SPIfromSerializedContainer;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
@@ -189,40 +191,45 @@ public class TestProcedureInvocation extends TestCase{
     /** Mimic the de/ser path from client to client interface */
     public void testRoundTrip() throws Exception {
         assertEquals(10, pi.getHandle());
-        ByteBuffer buf = ByteBuffer.allocate(pi.getSerializedSize());
+        SharedBBContainer sharedContainer = HBBPool.allocateHeapAndPool(pi.getSerializedSize());
         try {
-            pi.flattenToBuffer(buf);
+            pi.flattenToBuffer(sharedContainer.b());
         } catch (IOException e) {
             e.printStackTrace();
             fail();
         }
 
-        buf.flip();
+        sharedContainer.b().flip();
 
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromSerializedContainer spi = new SPIfromSerializedContainer();
         try {
-            spi.initFromBuffer(buf);
+            spi.initFromContainer(sharedContainer);
         } catch (IOException e) {
             e.printStackTrace();
             fail();
         }
 
         verifySpi(spi);
+        sharedContainer.discard();
+        spi.discard();
     }
 
     public void testGetAsBytes() throws Exception {
-        StoredProcedureInvocation spi = null;
+        SharedBBContainer sharedContainer = null;
+        SPIfromSerializedContainer spi = null;
         try {
-            ByteBuffer buf = ByteBuffer.allocate(pi.getSerializedSize());
-            pi.flattenToBuffer(buf);
-            buf.flip();
-            spi = new StoredProcedureInvocation();
-            spi.initFromBuffer(buf);
+            sharedContainer = HBBPool.allocateHeapAndPool(pi.getSerializedSize());
+            pi.flattenToBuffer(sharedContainer.b());
+            sharedContainer.b().flip();
+            spi = new SPIfromSerializedContainer();
+            spi.initFromContainer(sharedContainer);
         } catch (IOException e) {
             e.printStackTrace();
             fail();
         }
 
         verifySpi(spi);
+        sharedContainer.discard();
+        spi.discard();
     }
 }

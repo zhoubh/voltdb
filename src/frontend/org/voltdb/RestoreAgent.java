@@ -31,10 +31,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
 
 import org.apache.zookeeper_voltpatches.CreateMode;
 import org.apache.zookeeper_voltpatches.KeeperException;
@@ -1221,15 +1219,9 @@ SnapshotCompletionInterest, Promotable
         final String procedureName = "@SnapshotRestore";
         Config restore = SystemProcedureCatalog.listing.get(procedureName);
         Procedure restoreProc = restore.asCatalogProcedure();
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
-        spi.setProcName(procedureName);
-        spi.params = new FutureTask<ParameterSet>(new Callable<ParameterSet>() {
-            @Override
-            public ParameterSet call() throws Exception {
-                ParameterSet params = ParameterSet.fromArrayWithCopy(procParams);
-                return params;
-            }
-        });
+        SPIfromParameterArray spi = new SPIfromParameterArray();
+        spi.procName = procedureName;
+        spi.setSafeParams(procParams);
         spi.setClientHandle(m_restoreAdapter.registerCallback(m_clientAdapterCallback));
 
         m_initiator.createTransaction(m_restoreAdapter.connectionId(), spi,

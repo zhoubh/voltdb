@@ -62,26 +62,49 @@ public class NIOReadStream {
         return m_totalAvailable;
     }
 
-    int getInt() {
-        // TODO: Optimize?
-        byte[] intbytes = new byte[4];
-        getBytes(intbytes);
-        int output = 0;
-        for (int i = 0; i < intbytes.length; ++i) {
-            output <<= 8;
-            output |= (intbytes[i]) & 0xff;
-        }
-        return output;
+    byte getByte() {
+        getCountedBytes(m_primativeConverter, 1);
+        return (byte)(m_primativeConverter[0] & 0xFF);
     }
 
-    void getBytes(byte[] output) {
-        if (m_totalAvailable < output.length) {
-            throw new IllegalStateException("Requested " + output.length + " bytes; only have "
+    short getShort() {
+        getCountedBytes(m_primativeConverter, 2);
+        return (short)
+                ((((m_primativeConverter[1]) & 0xFF) << 0) |
+                 ((m_primativeConverter[0]) << 8));
+    }
+
+    int getInt() {
+        getCountedBytes(m_primativeConverter, 4);
+        return (int)
+                ((((m_primativeConverter[3]) & 0xFF) <<  0) |
+                 (((m_primativeConverter[2]) & 0xFF) <<  8) |
+                 (((m_primativeConverter[1]) & 0xFF) << 16) |
+                  ((m_primativeConverter[0])         << 24));
+    }
+
+    long getLong() {
+        getCountedBytes(m_primativeConverter, 8);
+        return (long)
+                ((((m_primativeConverter[7]) & 0xFFL) <<  0) |
+                 (((m_primativeConverter[6]) & 0xFFL) <<  8) |
+                 (((m_primativeConverter[5]) & 0xFFL) << 16) |
+                 (((m_primativeConverter[4]) & 0xFFL) << 24) |
+                 (((m_primativeConverter[3]) & 0xFFL) << 32) |
+                 (((m_primativeConverter[2]) & 0xFFL) << 40) |
+                 (((m_primativeConverter[1]) & 0xFFL) << 48) |
+                  (((long) m_primativeConverter[0])   << 56));
+    }
+
+    void getCountedBytes(byte[] output, int count) {
+        assert(output.length >= count);
+        if (m_totalAvailable < count) {
+            throw new IllegalStateException("Requested " + count + " bytes; only have "
                     + m_totalAvailable + " bytes; call tryRead() first");
         }
 
         int bytesCopied = 0;
-        while (bytesCopied < output.length) {
+        while (bytesCopied < count) {
             BBContainer firstC = m_readBuffers.peekFirst();
             if (firstC == null) {
                 // Steal the write buffer
@@ -95,7 +118,7 @@ public class NIOReadStream {
 
             // Copy bytes from first into output
             int bytesRemaining = first.remaining();
-            int bytesToCopy = output.length - bytesCopied;
+            int bytesToCopy = count - bytesCopied;
             if (bytesToCopy > bytesRemaining) bytesToCopy = bytesRemaining;
             first.get(output, bytesCopied, bytesToCopy);
             bytesCopied += bytesToCopy;
@@ -107,6 +130,10 @@ public class NIOReadStream {
                 firstC.discard();
             }
         }
+    }
+
+    void getBytes(byte[] output) {
+        getCountedBytes(output, output.length);
     }
 
     /**
@@ -182,6 +209,7 @@ public class NIOReadStream {
     private int m_totalAvailable = 0;
     private long m_bytesRead = 0;
     private long m_lastBytesRead = 0;
+    private byte[] m_primativeConverter = new byte[8];
 
     long getBytesRead(boolean interval) {
         if (interval) {

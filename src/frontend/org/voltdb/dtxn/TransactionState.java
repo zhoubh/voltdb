@@ -92,6 +92,7 @@ public abstract class TransactionState extends OrderableTransaction  {
 
     // Assume that done-ness is a latch.
     public void setDone() {
+        m_notice.discard();
         m_done = true;
     }
 

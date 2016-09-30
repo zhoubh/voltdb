@@ -41,9 +41,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.voltcore.messaging.TransactionInfoBaseMessage;
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltcore.utils.Pair;
 import org.voltdb.ParameterSet;
-import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.SPIfromParameterArray;
 import org.voltdb.TheHashinator;
 import org.voltdb.TheHashinator.HashinatorType;
 import org.voltdb.messaging.CompleteTransactionMessage;
@@ -92,11 +95,19 @@ public class TestRepairLog
     private static class FooMessage extends VoltMessage
     {
         @Override
-        protected void initFromBuffer(ByteBuffer buf) throws IOException {
+        protected void initFromContainer(SharedBBContainer container) {
+        }
+
+        @Override
+        public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
         }
 
         @Override
         public void flattenToBuffer(ByteBuffer buf) throws IOException {
+        }
+
+        @Override
+        public void discard() {
         }
     }
 
@@ -362,7 +373,7 @@ public class TestRepairLog
         // to the repair log, and see what we get
         final long endSpUniqueId = 42;
         final long endMpUniqueId = 25;
-        StoredProcedureInvocation spi = new StoredProcedureInvocation();
+        SPIfromParameterArray spi = new SPIfromParameterArray();
         spi.setProcName("@ApplyBinaryLogSP");
         spi.setParams(0, endSpUniqueId - 10, endSpUniqueId, endSpUniqueId, endMpUniqueId, new byte[]{0});
 

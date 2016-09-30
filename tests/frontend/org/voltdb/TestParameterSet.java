@@ -68,7 +68,7 @@ public class TestParameterSet extends TestCase {
     ParameterSet params;
 
     public void testNull() throws IOException {
-        params = ParameterSet.fromArrayNoCopy(new Object[]{null, null, null});
+        params = ParameterSet.fromArrayNoCopy(null, null, null);
         ByteBuffer buf = ByteBuffer.allocate(params.getSerializedSize());
         params.flattenToBuffer(buf);
         buf.rewind();
@@ -86,7 +86,7 @@ public class TestParameterSet extends TestCase {
     }
 
     public void testStrings() throws IOException {
-        params = ParameterSet.fromArrayNoCopy(new Object[]{"foo"});
+        params = ParameterSet.fromArrayNoCopy("foo");
         ByteBuffer buf = ByteBuffer.allocate(params.getSerializedSize());
         params.flattenToBuffer(buf);
         buf.rewind();
@@ -97,7 +97,7 @@ public class TestParameterSet extends TestCase {
     }
 
     public void testStringsAsByteArray() throws IOException {
-        params = ParameterSet.fromArrayNoCopy(new Object[]{new byte[]{'f', 'o', 'o'}});
+        params = ParameterSet.fromArrayNoCopy(new byte[]{'f', 'o', 'o'});
         ByteBuffer buf = ByteBuffer.allocate(params.getSerializedSize());
         params.flattenToBuffer(buf);
         buf.rewind();
@@ -110,7 +110,8 @@ public class TestParameterSet extends TestCase {
     }
 
     public void testNullSigils() throws IOException {
-        params = ParameterSet.fromArrayNoCopy(VoltType.NULL_STRING_OR_VARBINARY, VoltType.NULL_DECIMAL, VoltType.NULL_INTEGER);
+        params = ParameterSet.fromArrayNoCopy(
+                VoltType.NULL_STRING_OR_VARBINARY, VoltType.NULL_DECIMAL, VoltType.NULL_INTEGER);
         ByteBuffer buf = ByteBuffer.allocate(params.getSerializedSize());
         params.flattenToBuffer(buf);
         buf.rewind();
@@ -155,7 +156,7 @@ public class TestParameterSet extends TestCase {
 
         // SHOULD SUCCEED: Empty Object array of null
         o_array = new Object[]{};
-        p1 = ParameterSet.fromArrayNoCopy(new Object[]{});
+        p1 = ParameterSet.fromArrayNoCopy();
         first_param = p1.toArray();
         assertEquals(first_param.length, p1.toArray().length);
 
@@ -385,7 +386,7 @@ public class TestParameterSet extends TestCase {
     }
 
     public void testJSONEncodesBinary() throws JSONException, IOException {
-        params = ParameterSet.fromArrayNoCopy(new Object[]{ 123,
+        params = ParameterSet.fromArrayNoCopy(123,
                                            12345,
                                            1234567,
                                            12345678901L,
@@ -393,7 +394,7 @@ public class TestParameterSet extends TestCase {
                                            "aabbcc",
                                            new byte[] { 10, 26, 10 },
                                            new TimestampType(System.currentTimeMillis()),
-                                           new BigDecimal("123.45") } );
+                                           new BigDecimal("123.45") );
 
         String json = params.toJSONString();
         ParameterSet p2 = ParameterSet.fromJSONString(json);
@@ -407,10 +408,10 @@ public class TestParameterSet extends TestCase {
         assertEquals("0a1A0A", p2.toArray()[6]);
 
         // this tests that JSON handles special floats
-        params = ParameterSet.fromArrayNoCopy(new Object[]{
+        params = ParameterSet.fromArrayNoCopy(
                 Double.NaN,
                 Double.POSITIVE_INFINITY,
-                Double.NEGATIVE_INFINITY } );
+                Double.NEGATIVE_INFINITY);
 
         json = params.toJSONString();
         p2 = ParameterSet.fromJSONString(json);
@@ -447,14 +448,14 @@ public class TestParameterSet extends TestCase {
         crc.update(buf.array());
         long crc2 = crc.getValue();
 
-        pset = ParameterSet.fromArrayNoCopy(new Object[0]);
+        pset = ParameterSet.fromArrayNoCopy();
         crc = new PureJavaCrc32C();
         buf = ByteBuffer.allocate(pset.getSerializedSize());
         pset.flattenToBuffer(buf);
         crc.update(buf.array());
         long crc3 = crc.getValue();
 
-        pset = ParameterSet.fromArrayNoCopy(new Object[] { 1 });
+        pset = ParameterSet.fromArrayNoCopy(1);
         crc = new PureJavaCrc32C();
         buf = ByteBuffer.allocate(pset.getSerializedSize());
         pset.flattenToBuffer(buf);

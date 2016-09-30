@@ -17,15 +17,20 @@
 
 package org.voltdb.messaging;
 
-import com.google_voltpatches.common.collect.ImmutableSet;
-import com.google_voltpatches.common.collect.Sets;
-import org.voltcore.messaging.VoltMessage;
-import org.voltdb.StoredProcedureInvocation;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Set;
+
+import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+import org.voltdb.SPIfromSerializedBuffer;
+import org.voltdb.StoredProcedureInvocation;
+
+import com.google_voltpatches.common.collect.ImmutableSet;
+import com.google_voltpatches.common.collect.Sets;
 
 /**
  * A message sent from the involved partitions to the
@@ -81,6 +86,11 @@ public class MpReplayMessage extends VoltMessage {
     }
 
     @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        initFromBuffer(handler.getNextBBMessage(inputStream));
+    }
+
+    @Override
     public int getSerializedSize()
     {
         int size = super.getSerializedSize();
@@ -98,6 +108,8 @@ public class MpReplayMessage extends VoltMessage {
     }
 
     @Override
+    protected void initFromContainer(SharedBBContainer container) throws IOException {}
+
     protected void initFromBuffer(ByteBuffer buf) throws IOException
     {
         m_txnId = buf.getLong();
@@ -110,8 +122,9 @@ public class MpReplayMessage extends VoltMessage {
         }
 
         if (buf.remaining() > 0) {
-            m_invocation = new StoredProcedureInvocation();
-            m_invocation.initFromBuffer(buf);
+            SPIfromSerializedBuffer invocation = new SPIfromSerializedBuffer();
+            invocation.initFromByteBuffer(buf);
+            m_invocation = invocation;
         } else {
             m_invocation = null;
         }
@@ -133,7 +146,13 @@ public class MpReplayMessage extends VoltMessage {
             m_invocation.flattenToBuffer(buf);
         }
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
+    }
+
+    @Override
+    public void discard()
+    {
+        m_invocation.discard();
     }
 }

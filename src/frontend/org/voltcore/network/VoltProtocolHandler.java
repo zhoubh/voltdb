@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.voltcore.utils.HBBPool;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
+
 public abstract class VoltProtocolHandler implements InputHandler {
     /** VoltProtocolPorts each have a unique id */
     private static AtomicLong m_globalConnectionCounter = new AtomicLong(0);
@@ -51,7 +54,7 @@ public abstract class VoltProtocolHandler implements InputHandler {
     }
 
     @Override
-    public ByteBuffer retrieveNextMessage(final NIOReadStream inputStream) throws BadMessageLength {
+    public boolean nextMessageReady(final NIOReadStream inputStream) throws BadMessageLength {
 
         /*
          * Note that access to the read stream is not synchronized. In this application
@@ -59,7 +62,6 @@ public abstract class VoltProtocolHandler implements InputHandler {
          * thread safety. That said the Connection interface does allow other parts of the application
          * access to the read stream.
          */
-        ByteBuffer result = null;
 
         if (m_nextLength == 0 && inputStream.dataAvailable() > (Integer.SIZE/8)) {
             m_nextLength = inputStream.getInt();
@@ -76,11 +78,57 @@ public abstract class VoltProtocolHandler implements InputHandler {
             assert m_nextLength > 0;
         }
         if (m_nextLength > 0 && inputStream.dataAvailable() >= m_nextLength) {
-            result = ByteBuffer.allocate(m_nextLength);
-            inputStream.getBytes(result.array());
-            m_nextLength = 0;
-            m_sequenceId++;
+            return true;
         }
+        return false;
+    }
+
+    public byte getNextMessageByte(final NIOReadStream inputStream) {
+        m_nextLength--;
+        return inputStream.getByte();
+    }
+
+    public short getNextMessageShort(final NIOReadStream inputStream) {
+        m_nextLength -= 2;
+        return inputStream.getShort();
+    }
+
+    public int getNextMessageInt(final NIOReadStream inputStream) {
+        m_nextLength -= 4;
+        return inputStream.getInt();
+    }
+
+    public long getNextMessageLong(final NIOReadStream inputStream) {
+        m_nextLength -= 8;
+        return inputStream.getLong();
+    }
+
+    public void getNextMessageByteArray(final NIOReadStream inputStream, byte[] dest, final int byteCount) {
+        m_nextLength -= byteCount;
+        inputStream.getCountedBytes(dest, byteCount);
+    }
+
+    public ByteBuffer getNextBBMessage(final NIOReadStream inputStream) {
+        ByteBuffer result = ByteBuffer.allocate(m_nextLength);
+        inputStream.getBytes(result.array());
+        m_nextLength = 0;
+        m_sequenceId++;
+        return result;
+    }
+
+    public SharedBBContainer getNextHBBMessage(final NIOReadStream inputStream) {
+        SharedBBContainer result = HBBPool.allocateHeapAndPool(m_nextLength);
+        inputStream.getCountedBytes(result.b().array(), m_nextLength);
+        m_nextLength = 0;
+        m_sequenceId++;
+        return result;
+    }
+
+    public SharedBBContainer getNextHBBMessageNoLogging(final NIOReadStream inputStream) {
+        SharedBBContainer result = HBBPool.allocateHeapAndPoolNoLogging(m_nextLength);
+        inputStream.getCountedBytes(result.b().array(), m_nextLength);
+        m_nextLength = 0;
+        m_sequenceId++;
         return result;
     }
 

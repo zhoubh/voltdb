@@ -22,6 +22,9 @@ import java.nio.ByteBuffer;
 
 import org.voltcore.messaging.Subject;
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 import org.voltdb.messaging.VoltDbMessageFactory;
 
 /**
@@ -61,11 +64,19 @@ public class RejoinDataMessage extends VoltMessage {
     }
 
     @Override
-    protected void initFromBuffer(ByteBuffer buf) throws IOException {
+    protected void initFromContainer(SharedBBContainer sharedContainer) {}
+
+    protected void initFromBuffer(ByteBuffer buf) {
         m_targetId = buf.getLong();
         int len = buf.getInt();
         m_data = new byte[len];
         buf.get(m_data);
+    }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        ByteBuffer buf = handler.getNextBBMessage(inputStream);
+        initFromBuffer(buf);
     }
 
     @Override
@@ -76,4 +87,7 @@ public class RejoinDataMessage extends VoltMessage {
         buf.put(m_data);
         buf.limit(buf.position());
     }
+
+    @Override
+    public void discard() {}
 }

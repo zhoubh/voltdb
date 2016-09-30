@@ -260,7 +260,7 @@ public class RejoinProducer extends JoinProducerBase {
      */
     @Override
     public void runForRejoin(SiteProcedureConnection siteConnection,
-            TaskLog m_taskLog) throws IOException
+            TaskLog taskLog) throws IOException
     {
         if (!m_schemaHasNoTables) {
             boolean sourcesReady = false;

@@ -21,7 +21,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.voltcore.messaging.VoltMessage;
+import org.voltcore.network.NIOReadStream;
+import org.voltcore.network.VoltProtocolHandler;
 import org.voltcore.utils.CoreUtils;
+import org.voltcore.utils.HBBPool.SharedBBContainer;
 
 /**
  * Message from a client interface to an initiator, instructing the
@@ -74,15 +77,26 @@ public class Iv2RepairLogRequestMessage extends VoltMessage
         buf.putLong(m_requestId);
         buf.putInt(m_requestType);
 
-        assert(buf.capacity() == buf.position());
+        assert(buf.limit() == buf.position());
         buf.limit(buf.position());
     }
 
     @Override
-    public void initFromBuffer(ByteBuffer buf) throws IOException {
+    protected void initFromContainer(SharedBBContainer container) throws IOException {
+        ByteBuffer buf = container.b();
         m_requestId = buf.getLong();
         m_requestType = buf.getInt();
     }
+
+    @Override
+    public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
+        SharedBBContainer sharedContainer = handler.getNextHBBMessage(inputStream);
+        initFromContainer(sharedContainer);
+        sharedContainer.discard();
+    }
+
+    @Override
+    public void discard() {}
 
     @Override
     public String toString() {

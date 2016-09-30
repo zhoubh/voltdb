@@ -24,12 +24,12 @@
 package org.voltdb;
 
 import static junit.framework.Assert.assertEquals;
-import org.junit.Test;
-import org.voltdb.catalog.Procedure;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import org.junit.Test;
 import org.voltdb.InvocationPermissionPolicy.PolicyResult;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.common.Permission;
 
 public class TestInvocationAcceptancePolicy {
@@ -54,7 +54,7 @@ public class TestInvocationAcceptancePolicy {
     {
         AuthSystem.AuthUser user = createUser(false, false, true, null, true, false, false);
 
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
+        SPIfromParameterArray invocation = new SPIfromParameterArray();
         invocation.setProcName("@Pause");
 
         Procedure proc = SystemProcedureCatalog.listing.get("@Pause").asCatalogProcedure();
@@ -72,7 +72,7 @@ public class TestInvocationAcceptancePolicy {
     {
         AuthSystem.AuthUser user = createUser(true, false, false, null, true, false, false);
 
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
+        SPIfromParameterArray invocation = new SPIfromParameterArray();
         invocation.setProcName("@AdHoc_RW_MP");
         invocation.setParams("insert into T values (1);");
 
@@ -91,7 +91,7 @@ public class TestInvocationAcceptancePolicy {
     {
         AuthSystem.AuthUser user = createUser(false, false, false, null, true, true, true);
 
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
+        SPIfromParameterArray invocation = new SPIfromParameterArray();
         invocation.setProcName("@AdHoc_RO_MP");
         invocation.setParams("select * from T;");
 
@@ -110,7 +110,7 @@ public class TestInvocationAcceptancePolicy {
     {
         Procedure proc = new Procedure();
 
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
+        SPIfromParameterArray invocation = new SPIfromParameterArray();
         invocation.setProcName("MyProc");
         invocation.setParams("test");
 
@@ -133,7 +133,7 @@ public class TestInvocationAcceptancePolicy {
         proc.setDefaultproc(true);
         AuthSystem.AuthUser user = createUser(false, true, false, proc, true, false, false);
 
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
+        SPIfromParameterArray invocation = new SPIfromParameterArray();
         invocation.setProcName("A.insert");
         invocation.setParams("test");
 
@@ -153,7 +153,7 @@ public class TestInvocationAcceptancePolicy {
         proc.setReadonly(true);
         AuthSystem.AuthUser user = createUser(false, false, false, proc, true, false, false);
 
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
+        SPIfromParameterArray invocation = new SPIfromParameterArray();
         invocation.setProcName("X.select");
         invocation.setParams("test");
 
