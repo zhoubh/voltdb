@@ -615,18 +615,24 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
         // have the original ClientInterface HSID stored.  It would be more
         // useful to have the original ClienInterface HSId somewhere handy.
 
-        List<Long> expectedHSIds = new ArrayList<Long>(needsRepair);
-        DuplicateCounter counter = new DuplicateCounter(
-                HostMessenger.VALHALLA,
-                message.getTxnId(),
-                expectedHSIds,
-                message);
-        safeAddToDuplicateCounterMap(new DuplicateCounterKey(message.getTxnId(), message.getSpHandle()), counter);
-
         m_uniqueIdGenerator.updateMostRecentlyGeneratedUniqueId(message.getUniqueId());
-        // is local repair necessary?
+        // local repair is necessary
         if (needsRepair.contains(m_mailbox.getHSId())) {
             needsRepair.remove(m_mailbox.getHSId());
+
+            // If local(new promoted SPI) is missing this InitTaskMessage,
+            // we should create duplicate counter as the normal SPI transactions.
+            // However, if local has this message already when it's not the SPI,
+            // it did not create duplicate counter before. And finally it will advance its
+            // local truncation handle anyway.
+            List<Long> expectedHSIds = new ArrayList<Long>(needsRepair);
+            DuplicateCounter counter = new DuplicateCounter(
+                    HostMessenger.VALHALLA,
+                    message.getTxnId(),
+                    expectedHSIds,
+                    message);
+            safeAddToDuplicateCounterMap(new DuplicateCounterKey(message.getTxnId(), message.getSpHandle()), counter);
+
             // make a copy because handleIv2 non-repair case does?
             Iv2InitiateTaskMessage localWork =
                 new Iv2InitiateTaskMessage(message.getInitiatorHSId(),
@@ -634,7 +640,7 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             doLocalInitiateOffer(localWork);
         }
 
-        // is remote repair necessary?
+        // remote repair is necessary to finish the missing SP write transactions.
         if (!needsRepair.isEmpty()) {
             Iv2InitiateTaskMessage replmsg =
                 new Iv2InitiateTaskMessage(m_mailbox.getHSId(), m_mailbox.getHSId(), message);
@@ -725,7 +731,7 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             // the initiatorHSId is the ClientInterface mailbox.
             // this will be on SPI without k-safety or replica only with k-safety
             assert(!message.isReadOnly());
-            setRepairLogTruncationHandle(spHandle);
+            setRepairLogTruncationHandle(spHandle, false);
             m_mailbox.send(message.getInitiatorHSId(), message);
         }
     }
