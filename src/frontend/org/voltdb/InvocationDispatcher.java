@@ -1452,6 +1452,7 @@ public final class InvocationDispatcher {
             final boolean isForReplay)
     {
         assert(!isSinglePartition || (partition >= 0));
+        assert(invocation instanceof SPIfromSerialization);
         final ClientInterfaceHandleManager cihm = m_cihm.get(connectionId);
         if (cihm == null) {
             hostLog.warn("InvocationDispatcher.createTransaction request rejected. "

@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.CRC32;
 
 import org.voltcore.logging.Level;
 import org.voltcore.logging.VoltLogger;
@@ -93,7 +92,6 @@ import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.CompleteTransactionMessage;
-import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.Iv2InitiateTaskMessage;
 import org.voltdb.rejoin.TaskLog;
@@ -1374,26 +1372,21 @@ public class Site implements Runnable, SiteProcedureConnection, SiteSnapshotConn
     }
 
     @Override
-    public FastDeserializer executePlanFragments(
-            int numFragmentIds,
-            long[] planFragmentIds,
-            long[] inputDepIds,
-            Object[] parameterSets,
-            boolean[] isWriteFrag,
-            CRC32 writeCRC,
-            String[] sqlTexts,
-            long txnId,
-            long spHandle,
-            long uniqueId,
-            boolean readOnly) throws EEException
+    public VoltTable[] executePlanFragments(int numFragmentIds,
+                                            long[] planFragmentIds,
+                                            long[] inputDepIds,
+                                            Object[] parameterSets,
+                                            String[] sqlTexts,
+                                            long txnId,
+                                            long spHandle,
+                                            long uniqueId,
+                                            boolean readOnly) throws EEException
     {
         return m_ee.executePlanFragments(
                 numFragmentIds,
                 planFragmentIds,
                 inputDepIds,
                 parameterSets,
-                isWriteFrag,
-                writeCRC,
                 sqlTexts,
                 txnId,
                 spHandle,

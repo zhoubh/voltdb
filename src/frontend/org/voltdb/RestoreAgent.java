@@ -1220,17 +1220,24 @@ SnapshotCompletionInterest, Promotable
         Config restore = SystemProcedureCatalog.listing.get(procedureName);
         Procedure restoreProc = restore.asCatalogProcedure();
         SPIfromParameterArray spi = new SPIfromParameterArray();
-        spi.procName = procedureName;
+        spi.setProcName(procedureName);
         spi.setSafeParams(procParams);
         spi.setClientHandle(m_restoreAdapter.registerCallback(m_clientAdapterCallback));
-
-        m_initiator.createTransaction(m_restoreAdapter.connectionId(), spi,
-                                      restoreProc.getReadonly(),
-                                      restoreProc.getSinglepartition(),
-                                      restoreProc.getEverysite(),
-                                      0,//Can provide anything for multi-part
-                                      0,
-                                      System.nanoTime());
+        SPIfromSerialization serializedSPI;
+        try {
+            serializedSPI = spi.roundTripForCL();
+            m_initiator.createTransaction(m_restoreAdapter.connectionId(), serializedSPI,
+                                          restoreProc.getReadonly(),
+                                          restoreProc.getSinglepartition(),
+                                          restoreProc.getEverysite(),
+                                          0,//Can provide anything for multi-part
+                                          0,
+                                          System.nanoTime());
+            serializedSPI.discard();
+        } catch (Exception e) {
+            LOG.fatal(e);
+            VoltDB.crashLocalVoltDB(e.getMessage(), true, e);
+        }
     }
 
     /**

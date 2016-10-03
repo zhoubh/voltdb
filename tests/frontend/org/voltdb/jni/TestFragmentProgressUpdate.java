@@ -132,8 +132,6 @@ public class TestFragmentProgressUpdate extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectBottomFrag) },
                 null,
                 new ParameterSet[] { params },
-                new boolean[] { false },
-                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, Long.MAX_VALUE);
         // Like many fully successful operations, a single row fetch counts as 2 logical row operations,
@@ -187,8 +185,6 @@ public class TestFragmentProgressUpdate extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectBottomFrag) },
                 null,
                 new ParameterSet[] { params },
-                new boolean[] { false },
-                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, Long.MAX_VALUE);
 
@@ -225,8 +221,6 @@ public class TestFragmentProgressUpdate extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(deleteBottomFrag) },
                 null,
                 new ParameterSet[] { params },
-                new boolean[] { false },
-                null,
                 new String[] { deleteStmt.getSqltext() },
                 3, 3, 2, 42, WRITE_TOKEN);
 
@@ -242,8 +236,6 @@ public class TestFragmentProgressUpdate extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectBottomFrag) },
                 null,
                 new ParameterSet[] { params },
-                new boolean[] { false },
-                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, Long.MAX_VALUE);
         assertTrue(m_ee.m_callsFromEE > 2);
@@ -299,8 +291,6 @@ public class TestFragmentProgressUpdate extends TestCase {
                 new long[] { CatalogUtil.getUniqueIdForFragment(selectBottomFrag) },
                 null,
                 new ParameterSet[] { params },
-                new boolean[] { false },
-                null,
                 new String[] { selectStmt.getSqltext() },
                 3, 3, 2, 42, READ_ONLY_TOKEN);
 
@@ -478,8 +468,6 @@ public class TestFragmentProgressUpdate extends TestCase {
                     fragIds,
                     null,
                     paramSets,
-                    new boolean[] { false },
-                    null,
                     sqlTexts,
                     3, 3, 2, 42,
                     readOnly ? READ_ONLY_TOKEN : WRITE_TOKEN);

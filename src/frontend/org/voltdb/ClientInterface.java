@@ -1615,12 +1615,23 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
             InvocationDispatcher.dispatchStatistics(OpsSelector.SNAPSHOTDELETE, spi, m_snapshotDaemonAdapter);
             return;
         }
-        // initiate the transaction
-        createTransaction(m_snapshotDaemonAdapter.connectionId(),
-                spi, catProc.getReadonly(),
-                catProc.getSinglepartition(), catProc.getEverysite(),
-                0,
-                0, System.nanoTime());
+        /*
+         * Round trip the invocation to initialize it for command logging
+         */
+        SPIfromSerialization serializedSPI = null;
+        try {
+            serializedSPI = spi.roundTripForCL();
+            // initiate the transaction
+            createTransaction(m_snapshotDaemonAdapter.connectionId(),
+                    serializedSPI, catProc.getReadonly(),
+                    catProc.getSinglepartition(), catProc.getEverysite(),
+                    0,
+                    0, System.nanoTime());
+            serializedSPI.discard();
+        } catch (Exception e) {
+            hostLog.fatal(e);
+            VoltDB.crashLocalVoltDB(e.getMessage(), true, e);
+        }
     }
 
     /**

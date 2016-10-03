@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.cliffc_voltpatches.high_scale_lib.NonBlockingHashMap;
-import org.voltcore.logging.Level;
 import org.voltcore.logging.VoltLogger;
 /**
  * A pool of {@link java.nio.ByteBuffer ByteBuffers} that are
@@ -36,9 +35,9 @@ public final class HBBPool {
     private static final VoltLogger TRACE = new VoltLogger("HBBPOOL");
     private static final VoltLogger HOST = new VoltLogger("HBBPOOL");
 
-    static {
-        TRACE.setLevel(Level.TRACE);
-    }
+//    static {
+//        TRACE.setLevel(Level.TRACE);
+//    }
 
     /**
      * Number of bytes allocated globally by DBBPools

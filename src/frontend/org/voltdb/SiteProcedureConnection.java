@@ -20,7 +20,6 @@ package org.voltdb;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
-import java.util.zip.CRC32;
 
 import org.voltcore.utils.Pair;
 import org.voltdb.VoltProcedure.VoltAbortException;
@@ -28,7 +27,6 @@ import org.voltdb.dtxn.TransactionState;
 import org.voltdb.dtxn.UndoAction;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.iv2.JoinProducerBase;
-import org.voltdb.messaging.FastDeserializer;
 
 /**
  * VoltProcedures invoke SiteProcedureConnection methods to
@@ -104,13 +102,11 @@ public interface SiteProcedureConnection {
      * Note: it's ok to pass null for inputDepIds if the fragments
      * have no dependencies.
      */
-    public FastDeserializer executePlanFragments(
+    public VoltTable[] executePlanFragments(
             int numFragmentIds,
             long[] planFragmentIds,
             long[] inputDepIds,
             Object[] parameterSets,
-            boolean[] isWriteFrag,
-            CRC32 writeCRC,
             String[] sqlTexts,
             long txnId,
             long spHandle,
