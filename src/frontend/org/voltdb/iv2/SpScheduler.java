@@ -248,7 +248,10 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             final TransactionState txn = m_outstandingTxns.get(key.m_txnId);
             if (txn == null || txn.isDone()) {
                 m_outstandingTxns.remove(key.m_txnId);
-                setRepairLogTruncationHandle(key.m_spHandle);
+                // for MP write txns, we should use it's first SpHandle in the TransactionState
+                // for SP write txns, we can just use the SpHandle from the DuplicateCounterKey
+                long m_safeSpHandle = txn == null ? key.m_spHandle: txn.m_spHandle;
+                setRepairLogTruncationHandle(m_safeSpHandle);
             }
 
             VoltMessage resp = counter.getLastResponse();
@@ -721,7 +724,7 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             // the initiatorHSId is the ClientInterface mailbox.
             // this will be on SPI without k-safety or replica only with k-safety
             assert(!message.isReadOnly());
-            setRepairLogTruncationHandle(spHandle);
+            setRepairLogTruncationHandle(spHandle, false);
             m_mailbox.send(message.getInitiatorHSId(), message);
         }
     }
@@ -1039,41 +1042,25 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
 
     public void handleCompleteTransactionResponseMessage(CompleteTransactionResponseMessage msg)
     {
-        final DuplicateCounterKey duplicateCounterKey = new DuplicateCounterKey(msg.getTxnId(), msg.getSpHandle());
-        DuplicateCounter counter = m_duplicateCounters.get(duplicateCounterKey);
-        boolean txnDone = true;
-
         if (msg.isRestart()) {
-            // Don't mark txn done for restarts
-            txnDone = false;
+            return;
         }
 
-        if (counter != null) {
-            txnDone = counter.offer(msg) == DuplicateCounter.DONE;
+        final TransactionState txn = m_outstandingTxns.remove(msg.getTxnId());
+        if (txn == null) {
+            throw new RuntimeException("Transaction State of CompleteTransactionResponseMessag should not be NULL, "
+                    + "message: " + msg.toString());
         }
 
-        if (txnDone) {
-            assert !msg.isRestart();
-            final TransactionState txn = m_outstandingTxns.remove(msg.getTxnId());
-            m_duplicateCounters.remove(duplicateCounterKey);
-
-            if (txn != null) {
-                // Set the truncation handle here instead of when processing
-                // FragmentResponseMessage to avoid letting replicas think a
-                // fragment is done before the MP txn is fully committed.
-                assert txn.isDone() : "Counter " + counter + ", leader " + m_isLeader + ", " + msg;
-                setRepairLogTruncationHandle(txn.m_spHandle);
-            }
+        if (txn != null) {
+            // Set the truncation handle here instead of when processing
+            // FragmentResponseMessage to avoid letting replicas think a
+            // fragment is done before the MP txn is fully committed.
+            setRepairLogTruncationHandle(txn.m_spHandle, false);
         }
 
         // The CompleteTransactionResponseMessage ends at the SPI. It is not
         // sent to the MPI because it doesn't care about it.
-        //
-        // The SPI uses this response message to track if all replicas have
-        // committed the transaction.
-        if (!m_isLeader) {
-            m_mailbox.send(msg.getSPIHSId(), msg);
-        }
     }
 
     /**
@@ -1264,6 +1251,11 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
 
     private void setRepairLogTruncationHandle(long newHandle)
     {
+        setRepairLogTruncationHandle(newHandle, true);
+    }
+
+    private void setRepairLogTruncationHandle(long newHandle, boolean tellReplica)
+    {
         if (newHandle < m_repairLogTruncationHandle) {
             throw new RuntimeException("Updating truncation point from " +
                     TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
@@ -1282,7 +1274,17 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             if (m_defaultConsistencyReadLevel == ReadLevel.SAFE) {
                 m_bufferedReadLog.releaseBufferedReads(m_mailbox, m_repairLogTruncationHandle);
             }
-            scheduleRepairLogTruncateMsg();
+
+            if (tellReplica) {
+                // complete transaction response message will move its truncation point locally
+                // because MP will not allow any new SP to run before it finishes and MP transaction
+                // can be restarted.
+                // Leader does not know when replcias have finished its complete transaction message.
+                // Adding a counter will not help here because of edge cases like restarting MP txn
+                // with a following SP without any need to fix replica. This SP will commit immediately
+                // before its previous MP receive acked complete transaction response message from replicas.
+                scheduleRepairLogTruncateMsg();
+            }
         }
     }
 
