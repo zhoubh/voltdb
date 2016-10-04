@@ -62,7 +62,7 @@ public class TestPlansJoin extends PlannerTestCase {
         static JoinOp EQUAL =
                 new JoinOp("=", ExpressionType.COMPARE_EQUAL);
 
-        static JoinOp[] JOIN_OPS = new JoinOp[] {EQUAL};//SOON:, NOT_DISTINCT};
+        static JoinOp[] JOIN_OPS = new JoinOp[] {EQUAL, NOT_DISTINCT};
 
         @Override
         public String toString() { return m_string; }
