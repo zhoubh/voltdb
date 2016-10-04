@@ -38,7 +38,7 @@ public class TestJoinsSuite extends RegressionSuite {
 
     // Operators that should be safe and effective for use as partition key
     // filters to minimally enable partition table joins.
-    private static final String[] JOIN_OPS = {"="};//TODO SOON:{"=", "IS NOT DISTINCT FROM"};
+    private static final String[] JOIN_OPS = {"=", "IS NOT DISTINCT FROM"};
 
     public TestJoinsSuite(String name) {
         super(name);
