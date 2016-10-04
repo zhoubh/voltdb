@@ -1058,7 +1058,8 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
 
         final TransactionState txn = m_outstandingTxns.remove(msg.getTxnId());
         if (txn == null) {
-            throw new RuntimeException("Complete txn response message state is null, message: " + msg.toString());
+            throw new RuntimeException("Transaction State of CompleteTransactionResponseMessag should not be NULL, "
+                    + "message: " + msg.toString());
         }
 
         if (txn != null) {
