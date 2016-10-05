@@ -112,6 +112,10 @@ public class CompleteTransactionResponseMessage extends VoltMessage
     public void initFromInputHandler(VoltProtocolHandler handler, NIOReadStream inputStream) throws IOException {
         initFromContainer(handler.getNextHBBMessage(inputStream));
     }
+
+    @Override
+    public void implicitReference() {}
+
     @Override
     public void discard() {}
 

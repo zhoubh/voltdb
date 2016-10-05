@@ -291,15 +291,16 @@ public final class HBBPool {
 
         final protected void checkUseAfterFree() {
             if (m_freeThrowable != null) {
-                System.err.println("Use of BufferWrapper " + Integer.toHexString(m_bufWrapper.hashCode()) +
+                String errMsg = "Use of BufferWrapper " + Integer.toHexString(m_bufWrapper.hashCode()) +
                         " Container " + Integer.toHexString(hashCode()) +
-                        " with HBB capacity " + m_bufWrapper.m_buffer.length + " after free in HBBPool");
+                        " with HBB capacity " + m_bufWrapper.m_buffer.length + " after free in HBBPool";
+                System.err.println(errMsg);
                 System.err.println("Free was by:");
                 m_freeThrowable.printStackTrace();
                 System.err.println("Use was by:");
                 Throwable t = new Throwable("\"" + Thread.currentThread().getName() + "\" at " + System.currentTimeMillis());
                 t.printStackTrace();
-                HOST.fatal("Use after free in HBBPool");
+                HOST.fatal(errMsg);
                 HOST.fatal("Free was by:", m_freeThrowable);
                 HOST.fatal("Use was by:", t);
                 System.exit(-1);
@@ -309,15 +310,17 @@ public final class HBBPool {
         final protected void checkDoubleFree() {
             synchronized (this) {
                 if (m_freeThrowable != null) {
-                    System.err.println("Double free of BufferWrapper " + Integer.toHexString(m_bufWrapper.hashCode()) +
+                    String errMsg = "Double free of BufferWrapper " + Integer.toHexString(m_bufWrapper.hashCode()) +
                             " Container " + Integer.toHexString(hashCode()) +
-                            " with HBB capacity " + m_bufWrapper.m_buffer.length + " in HBBPool");
+                            " with HBB capacity " + m_bufWrapper.m_buffer.length + " in HBBPool";
+                    System.err.println(errMsg);
                     System.err.println("Original free was by:");
                     m_freeThrowable.printStackTrace();
                     System.err.println("Current free was by:");
                     Throwable t = new Throwable("\"" + Thread.currentThread().getName() + "\" at " + System.currentTimeMillis());
                     t.printStackTrace();
-                    HOST.fatal("Double free in HBBPool");
+                    HOST.fatal(errMsg);
+                    System.err.println("Original free was by:");
                     HOST.fatal("Original free was by:", m_freeThrowable);
                     HOST.fatal("Current free was by:", t);
                     System.exit(-1);

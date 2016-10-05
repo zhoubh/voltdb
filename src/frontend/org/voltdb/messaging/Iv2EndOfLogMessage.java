@@ -84,6 +84,9 @@ public class Iv2EndOfLogMessage extends TransactionInfoBaseMessage
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 
     @Override

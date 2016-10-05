@@ -95,6 +95,9 @@ public class Iv2LogFaultMessage extends VoltMessage
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 
     @Override

@@ -75,6 +75,8 @@ public class HeartbeatMessage extends TransactionInfoBaseMessage {
     }
 
     @Override
+    public void implicitReference() {}
+    @Override
     public void discard() {}
 
     @Override

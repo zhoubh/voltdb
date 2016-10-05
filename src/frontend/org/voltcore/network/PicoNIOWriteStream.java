@@ -65,9 +65,7 @@ public class PicoNIOWriteStream extends NIOWriteStreamBase {
     synchronized void shutdown() {
         super.shutdown();
         DeferredSerialization ds = null;
-        while ((ds = m_queuedWrites.poll()) != null) {
-            ds.cancel();
-        }
+        while ((ds = m_queuedWrites.poll()) != null);
     }
 
     @Override
@@ -118,7 +116,6 @@ public class PicoNIOWriteStream extends NIOWriteStreamBase {
 
     public void enqueue(DeferredSerialization ds) {
         if (m_isShutdown) {
-            ds.cancel();
             return;
         }
         m_queuedWrites.offer(ds);
@@ -136,9 +133,6 @@ public class PicoNIOWriteStream extends NIOWriteStreamBase {
             public void serialize(final ByteBuffer outbuf) throws IOException {
                 outbuf.put(buf);
             }
-
-            @Override
-            public void cancel() {}
 
             @Override
             public int getSerializedSize() {

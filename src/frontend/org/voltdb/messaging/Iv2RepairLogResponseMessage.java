@@ -210,8 +210,14 @@ public class Iv2RepairLogResponseMessage extends VoltMessage
     }
 
     @Override
-    public void discard()
-    {
+    public void implicitReference() {
+        if (m_payload != null) {
+            m_payload.implicitReference();
+        }
+    }
+
+    @Override
+    public void discard() {
         if (m_payload != null) {
             m_payload.discard();
         }

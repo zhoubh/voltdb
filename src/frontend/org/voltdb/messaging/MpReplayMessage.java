@@ -49,8 +49,7 @@ public class MpReplayMessage extends VoltMessage {
     }
 
     public MpReplayMessage(long txnId, long uniqueId, int partitionId, Collection<Integer> involvedPartitions,
-                           StoredProcedureInvocation invocation)
-    {
+                           StoredProcedureInvocation invocation) {
         super();
 
         m_txnId = txnId;
@@ -60,28 +59,23 @@ public class MpReplayMessage extends VoltMessage {
         m_invocation = invocation;
     }
 
-    public long getTxnId()
-    {
+    public long getTxnId() {
         return m_txnId;
     }
 
-    public long getUniqueId()
-    {
+    public long getUniqueId() {
         return m_uniqueId;
     }
 
-    public int getPartitionId()
-    {
+    public int getPartitionId() {
         return m_partitionId;
     }
 
-    public Set<Integer> getInvolvedPartitions()
-    {
+    public Set<Integer> getInvolvedPartitions() {
         return m_involvedPartitions;
     }
 
-    public StoredProcedureInvocation getInvocation()
-    {
+    public StoredProcedureInvocation getInvocation() {
         return m_invocation;
     }
 
@@ -91,8 +85,7 @@ public class MpReplayMessage extends VoltMessage {
     }
 
     @Override
-    public int getSerializedSize()
-    {
+    public int getSerializedSize() {
         int size = super.getSerializedSize();
         size +=   8 // m_txnId
                 + 8 // m_uniqueId
@@ -110,8 +103,7 @@ public class MpReplayMessage extends VoltMessage {
     @Override
     protected void initFromContainer(SharedBBContainer container) throws IOException {}
 
-    protected void initFromBuffer(ByteBuffer buf) throws IOException
-    {
+    protected void initFromBuffer(ByteBuffer buf) throws IOException {
         m_txnId = buf.getLong();
         m_uniqueId = buf.getLong();
         m_partitionId = buf.getInt();
@@ -131,8 +123,7 @@ public class MpReplayMessage extends VoltMessage {
     }
 
     @Override
-    public void flattenToBuffer(ByteBuffer buf) throws IOException
-    {
+    public void flattenToBuffer(ByteBuffer buf) throws IOException {
         buf.put(VoltDbMessageFactory.MP_REPLAY_ID);
         buf.putLong(m_txnId);
         buf.putLong(m_uniqueId);
@@ -151,8 +142,12 @@ public class MpReplayMessage extends VoltMessage {
     }
 
     @Override
-    public void discard()
-    {
+    public void implicitReference() {
+        m_invocation.discard();
+    }
+
+    @Override
+    public void discard() {
         m_invocation.discard();
     }
 }

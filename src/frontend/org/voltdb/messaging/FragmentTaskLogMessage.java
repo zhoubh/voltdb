@@ -131,5 +131,8 @@ public class FragmentTaskLogMessage extends TransactionInfoBaseMessage {
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 }

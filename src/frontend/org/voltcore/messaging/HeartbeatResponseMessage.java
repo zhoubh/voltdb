@@ -90,6 +90,9 @@ public class HeartbeatResponseMessage extends VoltMessage {
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 
     @Override

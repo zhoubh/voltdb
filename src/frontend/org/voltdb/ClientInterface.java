@@ -894,10 +894,6 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
         }
 
         @Override
-        public void cancel() {
-        }
-
-        @Override
         public int getSerializedSize() throws IOException {
             // HACK-O-RIFFIC
             // For now, figure out if this is a transaction that was ignored
@@ -1475,8 +1471,6 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
                         public void serialize(ByteBuffer outbuf) throws IOException {
                             outbuf.put(buf.duplicate());
                         }
-                        @Override
-                        public void cancel() {}
 
                         @Override
                         public int getSerializedSize() {

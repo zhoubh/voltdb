@@ -98,6 +98,9 @@ public class TestMessaging extends TestCase {
         }
 
         @Override
+        public void implicitReference() {}
+
+        @Override
         public void discard() {}
     }
 

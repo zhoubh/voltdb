@@ -520,6 +520,9 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
                             msg.isForReplay());
                 // Update the handle in the copy since the constructor doesn't set it
                 replmsg.setSpHandle(newSpHandle);
+                for (long ii : m_sendToHSIds) {
+                    message.implicitReference();
+                }
                 m_mailbox.send(m_sendToHSIds, replmsg);
 
                 DuplicateCounter counter = new DuplicateCounter(

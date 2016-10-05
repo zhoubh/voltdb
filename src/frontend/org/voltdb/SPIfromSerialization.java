@@ -28,6 +28,7 @@ import org.voltdb.utils.SerializationHelper;
 public abstract class SPIfromSerialization extends StoredProcedureInvocation {
 
     public abstract ByteBuffer GetUnsafeSerializedBBParams();
+    public abstract ByteBuffer GetSafeSerializedBBParams();
 
     /**
      * Serialize and then deserialize an invocation so that it has serializedParams set for command logging if the
@@ -177,7 +178,7 @@ public abstract class SPIfromSerialization extends StoredProcedureInvocation {
     @Override
     public ParameterSet getParams() {
         try {
-            return ParameterSet.fromByteBuffer(GetUnsafeSerializedBBParams());
+            return ParameterSet.fromByteBuffer(GetSafeSerializedBBParams());
         }
         catch (IOException e) {
             // Don't rethrow Errors as RuntimeExceptions because we will eat their

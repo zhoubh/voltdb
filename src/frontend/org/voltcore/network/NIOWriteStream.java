@@ -184,7 +184,6 @@ public class NIOWriteStream extends NIOWriteStreamBase implements WriteStream {
     public void enqueue(final DeferredSerialization ds) {
         synchronized (this) {
             if (m_isShutdown) {
-                ds.cancel();
                 return;
             }
             updateLastPendingWriteTimeAndQueueBackpressure();
@@ -252,9 +251,6 @@ public class NIOWriteStream extends NIOWriteStreamBase implements WriteStream {
                 }
 
                 @Override
-                public void cancel() {}
-
-                @Override
                 public int getSerializedSize() {
                     int sum = 0;
                     for (ByteBuffer buf : b) {
@@ -277,9 +273,7 @@ public class NIOWriteStream extends NIOWriteStreamBase implements WriteStream {
     synchronized void shutdown() {
         super.shutdown();
         DeferredSerialization ds = null;
-        while ((ds = m_queuedWrites.poll()) != null) {
-            ds.cancel();
-        }
+        while ((ds = m_queuedWrites.poll()) != null);
     }
 
     @Override

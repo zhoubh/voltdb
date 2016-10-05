@@ -104,5 +104,8 @@ public class CoalescedHeartbeatMessage extends TransactionInfoBaseMessage {
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 }

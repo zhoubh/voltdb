@@ -38,11 +38,5 @@ public interface DeferredSerialization {
      */
     void serialize(ByteBuffer buf) throws IOException;
 
-    /**
-     * A deferred serialization might not be able to take place if a stream is closed
-     * so a method for canceling the serialization and freeing associated resources must be provided.
-     */
-    void cancel();
-
     int getSerializedSize() throws IOException;
 }

@@ -28,17 +28,13 @@ public class PBDUtils {
     public static int writeDeferredSerialization(ByteBuffer mbuf, DeferredSerialization ds) throws IOException
     {
         int written = 0;
-        try {
-            final int objSizePosition = mbuf.position();
-            mbuf.position(mbuf.position() + PBDSegment.OBJECT_HEADER_BYTES);
-            final int objStartPosition = mbuf.position();
-            ds.serialize(mbuf);
-            written = mbuf.position() - objStartPosition;
-            mbuf.putInt(objSizePosition, written);
-            mbuf.putInt(objSizePosition + 4, PBDSegment.NO_FLAGS);
-        } finally {
-            ds.cancel();
-        }
+        final int objSizePosition = mbuf.position();
+        mbuf.position(mbuf.position() + PBDSegment.OBJECT_HEADER_BYTES);
+        final int objStartPosition = mbuf.position();
+        ds.serialize(mbuf);
+        written = mbuf.position() - objStartPosition;
+        mbuf.putInt(objSizePosition, written);
+        mbuf.putInt(objSizePosition + 4, PBDSegment.NO_FLAGS);
         return written;
     }
 

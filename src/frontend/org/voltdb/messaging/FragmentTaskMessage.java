@@ -801,7 +801,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     public void initFromContainer(SharedBBContainer container) throws IOException
     {
         initFromSubMessageBuffer(container);
-        assert(container.b().capacity() == container.b().position());
+        assert(container.b().limit() == container.b().position());
         container.discard();
     }
 

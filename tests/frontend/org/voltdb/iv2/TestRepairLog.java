@@ -107,6 +107,9 @@ public class TestRepairLog
         }
 
         @Override
+        public void implicitReference() {}
+
+        @Override
         public void discard() {
         }
     }

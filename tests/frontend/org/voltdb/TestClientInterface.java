@@ -860,8 +860,6 @@ public class TestClientInterface {
                 outbuf.put(buf);
             }
             @Override
-            public void cancel() {}
-            @Override
             public int getSerializedSize() {
                 return buf.remaining();
             }

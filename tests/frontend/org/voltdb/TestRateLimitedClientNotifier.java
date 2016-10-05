@@ -23,11 +23,16 @@
 
 package org.voltdb;
 
-import com.google_voltpatches.common.base.Predicates;
-import com.google_voltpatches.common.base.Supplier;
-import com.google_voltpatches.common.cache.Cache;
-import com.google_voltpatches.common.cache.CacheBuilder;
-import com.google_voltpatches.common.collect.ImmutableList;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,14 +41,11 @@ import org.voltcore.network.MockWriteStream;
 import org.voltcore.utils.DeferredSerialization;
 import org.voltdb.RateLimitedClientNotifier.Node;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.*;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import com.google_voltpatches.common.base.Predicates;
+import com.google_voltpatches.common.base.Supplier;
+import com.google_voltpatches.common.cache.Cache;
+import com.google_voltpatches.common.cache.CacheBuilder;
+import com.google_voltpatches.common.collect.ImmutableList;
 
 public class TestRateLimitedClientNotifier {
     private RateLimitedClientNotifier notifier = null;
@@ -61,8 +63,6 @@ public class TestRateLimitedClientNotifier {
                     public void serialize(final ByteBuffer outbuf) throws IOException {
                         outbuf.put(buf);
                     }
-                    @Override
-                    public void cancel() {}
                     @Override
                     public int getSerializedSize() {
                         return buf.remaining();

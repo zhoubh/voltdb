@@ -228,6 +228,11 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
     }
 
     @Override
+    public void implicitReference() {
+        m_invocation.implicitReference();
+    }
+
+    @Override
     public void discard() {
         m_invocation.discard();
     }

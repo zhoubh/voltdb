@@ -98,6 +98,9 @@ public final class FaultMessage extends VoltMessage {
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 
     @Override

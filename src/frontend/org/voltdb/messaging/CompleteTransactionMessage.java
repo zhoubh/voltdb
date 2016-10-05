@@ -145,6 +145,9 @@ public class CompleteTransactionMessage extends TransactionInfoBaseMessage
     }
 
     @Override
+    public void implicitReference() {}
+
+    @Override
     public void discard() {}
 
     @Override

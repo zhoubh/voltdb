@@ -35,9 +35,6 @@ import org.voltdb.iv2.TxnEgo;
 import com.google_voltpatches.common.collect.ImmutableList;
 import com.google_voltpatches.common.collect.ImmutableMap;
 
-import com.google_voltpatches.common.collect.ImmutableList;
-import com.google_voltpatches.common.collect.ImmutableMap;
-
 /**
  * Message from a stored procedure coordinator to an execution site
  * which is participating in the transaction. This message specifies
@@ -111,6 +108,9 @@ public class BorrowTaskMessage extends TransactionInfoBaseMessage
         throw new RuntimeException("Preparing to deserialize BorrowTaskMessage, " +
                 "which should never happen");
     }
+
+    @Override
+    public void implicitReference() {}
 
     @Override
     public void discard() {}

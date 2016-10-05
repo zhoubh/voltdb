@@ -38,6 +38,14 @@ public class SPIfromSerializedContainer extends SPIfromSerialization {
         return serializedParams.b().duplicate();
     }
 
+    @Override
+    public ByteBuffer GetSafeSerializedBBParams() {
+        ByteBuffer copy = ByteBuffer.allocate(serializedParamSize);
+        copy.put(serializedParams.b().array(), serializedParams.b().arrayOffset(), serializedParamSize);
+        copy.flip();
+        return copy;
+    }
+
     public void setSerializedParams(SharedBBContainer serializedParams) {
         assert(serializedParams.b().position() == 0);
         this.serializedParamSize = serializedParams.b().limit();
@@ -82,10 +90,8 @@ public class SPIfromSerializedContainer extends SPIfromSerialization {
      * is invoked by the command log.
      */
     public SharedBBContainer getSerializedParams() {
-        if (serializedParams != null) {
-            return serializedParams.duplicate();
-        }
-        return null;
+        assert(serializedParams != null);
+        return serializedParams.duplicate();
     }
 
     @Override
@@ -95,8 +101,7 @@ public class SPIfromSerializedContainer extends SPIfromSerialization {
 
     @Override
     public void discard() {
-        if (serializedParams != null) {
-            serializedParams.discard();
-        }
+        assert(serializedParams != null);
+        serializedParams.discard();
     }
 }

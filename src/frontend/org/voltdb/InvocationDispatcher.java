@@ -252,7 +252,7 @@ public final class InvocationDispatcher {
 
         String procName = task.getProcName();
         Procedure catProc = getProcedureFromName(procName, catalogContext);
-
+        hostLog.info("Received Dispatch: " + procName);
         if (catProc == null) {
             String errorMessage = "Procedure " + procName + " was not found";
             RateLimitedLogger.tryLogForMessage(EstTime.currentTimeMillis(),
@@ -1021,7 +1021,9 @@ public final class InvocationDispatcher {
             dispatchUpdateApplicationCatalog(catalogUpdateTask, alternateHandler, alternateAdapter, user, false);
 
         } catch (JSONException e) {
-            return unexpectedFailureResponse("Unable to parse parameters.", task.clientHandle);
+            long clientHandle = task.clientHandle;
+            task.discard();
+            return unexpectedFailureResponse("Unable to parse parameters.", clientHandle);
         }
         return null;
     }

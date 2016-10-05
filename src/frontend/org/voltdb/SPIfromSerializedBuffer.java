@@ -33,6 +33,11 @@ public class SPIfromSerializedBuffer extends SPIfromSerialization {
         return serializedParams.duplicate();
     }
 
+    @Override
+    public ByteBuffer GetSafeSerializedBBParams() {
+        return serializedParams.duplicate();
+    }
+
     public void setSerializedParams(ByteBuffer serializedParams) {
         assert(serializedParams.position() == 0);
         this.serializedParamSize = serializedParams.limit();
@@ -52,7 +57,7 @@ public class SPIfromSerializedBuffer extends SPIfromSerialization {
     public void initFromByteBuffer(ByteBuffer buf) throws IOException {
         genericInit(buf);
         // do not deserialize parameters in ClientInterface context
-        serializedParams = buf.duplicate();
+        serializedParams = buf.slice();
     }
 
     protected void initFromParameterSet(ParameterSet params) throws IOException {

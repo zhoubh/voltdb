@@ -236,14 +236,6 @@ public class ForeignHost {
                         }
 
                         @Override
-                        public final void cancel() {
-                        /*
-                         * Can this be removed?
-                         */
-                            message.discard();
-                        }
-
-                        @Override
                         public String toString() {
                             return message.getClass().getName();
                         }
