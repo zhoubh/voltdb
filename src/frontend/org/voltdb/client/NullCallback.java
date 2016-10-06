@@ -22,6 +22,18 @@ package org.voltdb.client;
  * is going to be ignored.
  */
 public final class NullCallback implements ProcedureCallback {
+    private static final NullCallback INSTANCE = new NullCallback();
+
+    // NullCallback is stateless -- avoid short-lived memory allocation
+    // by calling instance() to reuse the long-lived instance
+    // -- the only one ever required.
+    // TODO: transition to a deprecated public constructor
+    // then to a private constructor to force use of instance().
+    public NullCallback() { };
+
+    public static NullCallback instance() {
+        return INSTANCE;
+    }
 
     @Override
     public void clientCallback(ClientResponse clientResponse) {

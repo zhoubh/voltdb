@@ -67,7 +67,7 @@ public:
 
     SortDirectionType getSortDirection() const { return m_sort_direction; }
 
-    std::string getTargetIndexName() const { return m_target_index_name; }
+    const std::string& getTargetIndexName() const { return m_target_index_name; }
 
     const std::vector<AbstractExpression*>& getSearchKeyExpressions() const
     { return m_searchkey_expressions; }

@@ -15,48 +15,50 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include "indexcountnode.h"
 
-#include "expressions/abstractexpression.h"
+#include "boost/foreach.hpp"
 
 #include <sstream>
 
 namespace voltdb {
 
-PlanNodeType IndexCountPlanNode::getPlanNodeType() const { return PLAN_NODE_TYPE_INDEXCOUNT; }
-
 IndexCountPlanNode::~IndexCountPlanNode() { }
+
+PlanNodeType IndexCountPlanNode::getPlanNodeType() const { return PLAN_NODE_TYPE_INDEXCOUNT; }
 
 std::string IndexCountPlanNode::debugInfo(const std::string &spacer) const
 {
     std::ostringstream buffer;
-    buffer << AbstractScanPlanNode::debugInfo(spacer);
-    buffer << spacer << "TargetIndexName[" << m_target_index_name << "]\n";
-    buffer << spacer << "IndexLookupType[" << m_lookup_type << "]\n";
-
-    buffer << spacer << "SearchKey Expressions:\n";
-    for (int ctr = 0, cnt = (int)m_searchkey_expressions.size(); ctr < cnt; ctr++) {
-        buffer << m_searchkey_expressions[ctr]->debug(spacer);
+    buffer << AbstractScanPlanNode::debugInfo(spacer)
+           << spacer << "TargetIndexName[" << m_target_index_name << "]\n"
+           << spacer << "IndexLookupType["
+           << indexLookupToString(m_lookup_type) << "]\n"
+           << spacer << "SearchKey Expressions:\n";
+    BOOST_FOREACH(auto searchkey, m_searchkey_expressions) {
+        buffer << searchkey->debug(spacer);
     }
 
     buffer << spacer << "EndKey Expressions:\n";
-    for (int ctr = 0, cnt = (int)m_endkey_expressions.size(); ctr < cnt; ctr++) {
-        buffer << m_endkey_expressions[ctr]->debug(spacer);
+    BOOST_FOREACH(auto endkey, m_endkey_expressions) {
+        buffer << endkey->debug(spacer);
     }
 
-    buffer << spacer << "Post-Scan Expression: ";
-    if (m_predicate != NULL) {
-        buffer << "\n" << m_predicate->debug(spacer);
-    } else {
+    buffer << spacer << "Skip Null Expression: ";
+    if (m_skip_null_predicate != NULL) {
+        buffer << "\n" << m_skip_null_predicate->debug(spacer);
+    }
+    else {
         buffer << "<NULL>\n";
     }
+
     return buffer.str();
 }
 
 void IndexCountPlanNode::loadFromJSONObject(PlannerDomValue obj)
 {
     AbstractScanPlanNode::loadFromJSONObject(obj);
+    assert(getPredicate() == NULL);
 
     std::string endTypeString = obj.valueForKey("END_TYPE").asStr();
     m_end_type = stringToIndexLookup(endTypeString);
@@ -67,7 +69,18 @@ void IndexCountPlanNode::loadFromJSONObject(PlannerDomValue obj)
     m_target_index_name = obj.valueForKey("TARGET_INDEX_NAME").asStr();
 
     m_searchkey_expressions.loadExpressionArrayFromJSONObject("SEARCHKEY_EXPRESSIONS", obj);
+#ifndef NDEBUG
+    BOOST_FOREACH(auto searchKey, m_searchkey_expressions) {
+        assert(searchKey);
+    }
+#endif
+
     m_endkey_expressions.loadExpressionArrayFromJSONObject("ENDKEY_EXPRESSIONS", obj);
+#ifndef NDEBUG
+    BOOST_FOREACH(auto endKey, m_endkey_expressions) {
+        assert(endKey);
+    }
+#endif
 
     m_skip_null_predicate.reset(loadExpressionFromJSONObject("SKIP_NULL_PREDICATE", obj));
 }

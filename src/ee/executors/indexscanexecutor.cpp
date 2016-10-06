@@ -69,110 +69,82 @@
 #include "storage/persistenttable.h"
 
 using namespace voltdb;
-using std::cout;
-using std::endl;
 
-bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
-        TempTableLimits* limits)
-{
+bool IndexScanExecutor::p_init(AbstractPlanNode *, TempTableLimits* limits) {
     VOLT_TRACE("init IndexScan Executor");
-
-    m_projectionNode = NULL;
-
-    m_node = dynamic_cast<IndexScanPlanNode*>(abstractNode);
-    assert(m_node);
-    assert(m_node->getTargetTable());
+    IndexScanPlanNode* node = dynamic_cast<IndexScanPlanNode*>(m_abstractNode);
+    assert(node);
 
     // Create output table based on output schema from the plan
-    setTempOutputTable(limits, m_node->getTargetTable()->name());
+    setTempOutputTable(limits, node->getTargetTable()->name());
+    assert(m_tmpOutputTable);
+
+
+    // The target table should be a persistent table
+    PersistentTable* targetTable = dynamic_cast<PersistentTable*>(node->getTargetTable());
+    assert(targetTable);
+
+    // Grab the Index from the table. Throw an error if the index is missing.
+    TableIndex *tableIndex = targetTable->index(node->getTargetIndexName());
+    assert (tableIndex != NULL);
 
     //
     // INLINE PROJECTION
     //
-    if (m_node->getInlinePlanNode(PLAN_NODE_TYPE_PROJECTION) != NULL) {
-        m_projectionNode = static_cast<ProjectionPlanNode*>
-            (m_node->getInlinePlanNode(PLAN_NODE_TYPE_PROJECTION));
+    m_projectionNode =
+        static_cast<ProjectionPlanNode*>(node->getInlinePlanNode(PLAN_NODE_TYPE_PROJECTION));
 
+    if (m_projectionNode != NULL) {
         m_projector = OptimizedProjector(m_projectionNode->getOutputColumnExpressions());
         m_projector.optimize(m_projectionNode->getOutputTable()->schema(),
-                             m_node->getTargetTable()->schema());
+                             node->getTargetTable()->schema());
     }
 
     // Inline aggregation can be serial, partial or hash
     m_aggExec = voltdb::getInlineAggregateExecutor(m_abstractNode);
 
     //
-    // Make sure that we have search keys and that they're not null
-    //
-    m_numOfSearchkeys = (int)m_node->getSearchKeyExpressions().size();
-    m_searchKeyArrayPtr =
-            boost::shared_array<AbstractExpression*>
-    (new AbstractExpression*[m_numOfSearchkeys]);
-    m_searchKeyArray = m_searchKeyArrayPtr.get();
-
-    for (int ctr = 0; ctr < m_numOfSearchkeys; ctr++)
-    {
-        if (m_node->getSearchKeyExpressions()[ctr] == NULL)
-        {
-            VOLT_ERROR("The search key expression at position '%d' is NULL for"
-                    " PlanNode '%s'", ctr, m_node->debug().c_str());
-            return false;
-        }
-        m_searchKeyArrayPtr[ctr] =
-                m_node->getSearchKeyExpressions()[ctr];
-    }
-
-    //output table should be temptable
-    m_outputTable = static_cast<TempTable*>(m_node->getOutputTable());
-
-    // The target table should be a persistent table.
-    PersistentTable* targetTable = dynamic_cast<PersistentTable*>(m_node->getTargetTable());
-    assert(targetTable);
-
-    TableIndex *tableIndex = targetTable->index(m_node->getTargetIndexName());
-    m_searchKeyBackingStore = new char[tableIndex->getKeySchema()->tupleLength()];
-
-    // Grab the Index from our inner table
-    // We'll throw an error if the index is missing
-    VOLT_TRACE("Index key schema: '%s'", tableIndex->getKeySchema()->debug().c_str());
-    //
     // Miscellanous Information
     //
-    m_lookupType = m_node->getLookupType();
-    m_sortDirection = m_node->getSortDirection();
+    m_lookupType = node->getLookupType();
+    m_sortDirection = node->getSortDirection();
 
+    const std::vector<AbstractExpression*>& searchKeyExpressions = node->getSearchKeyExpressions();
+    m_numOfSearchKeys = (int)searchKeyExpressions.size();
+    m_searchKeyBackingStore = new char[tableIndex->getKeySchema()->tupleLength()];
+
+    AbstractExpression** searchKeyExprs = new AbstractExpression*[m_numOfSearchKeys];
+    for (int ctr = 0; ctr < m_numOfSearchKeys; ++ctr) {
+        searchKeyExprs[ctr] = searchKeyExpressions[ctr];
+    }
+    // The executor owns the expression array -- the plan node owns the expressions.
+    m_searchKeys = boost::shared_array<AbstractExpression*>(searchKeyExprs);
+
+    VOLT_TRACE("Index key schema: '%s'", tableIndex->getKeySchema()->debug().c_str());
     VOLT_DEBUG("IndexScan: %s.%s\n", targetTable->name().c_str(), tableIndex->getName().c_str());
 
     return true;
 }
 
-bool IndexScanExecutor::p_execute(const NValueArray &params)
-{
-    assert(m_node);
-    assert(m_node == dynamic_cast<IndexScanPlanNode*>(m_abstractNode));
+bool IndexScanExecutor::p_execute(const NValueArray &params) {
+    IndexScanPlanNode* node = static_cast<IndexScanPlanNode*>(m_abstractNode);
+    assert(node);
+    assert(node == dynamic_cast<IndexScanPlanNode*>(m_abstractNode));
 
-    // update local target table with its most recent reference
-    // The target table should be a persistent table.
-    assert(dynamic_cast<PersistentTable*>(m_node->getTargetTable()));
-    PersistentTable* targetTable = static_cast<PersistentTable*>(m_node->getTargetTable());
-
-    TableIndex *tableIndex = targetTable->index(m_node->getTargetIndexName());
-    IndexCursor indexCursor(tableIndex->getTupleSchema());
-
-    TableTuple searchKey(tableIndex->getKeySchema());
-    searchKey.moveNoHeader(m_searchKeyBackingStore);
-
-    assert(m_lookupType != INDEX_LOOKUP_TYPE_EQ ||
-            searchKey.getSchema()->columnCount() == m_numOfSearchkeys);
-
-    int activeNumOfSearchKeys = m_numOfSearchkeys;
-    IndexLookupType localLookupType = m_lookupType;
-    SortDirectionType localSortDirection = m_sortDirection;
+    // Short-circuit an empty scan
+    if (node->isEmptyScan()) {
+        VOLT_DEBUG ("Empty Index Scan :\n %s", m_tmpOutputTable->debug().c_str());
+        if (m_aggExec != NULL) {
+            m_aggExec->p_execute_finish();
+        }
+        return true;
+    }
 
     //
     // INLINE LIMIT
     //
-    LimitPlanNode* limit_node = dynamic_cast<LimitPlanNode*>(m_abstractNode->getInlinePlanNode(PLAN_NODE_TYPE_LIMIT));
+    LimitPlanNode* limit_node =
+            dynamic_cast<LimitPlanNode*>(node->getInlinePlanNode(PLAN_NODE_TYPE_LIMIT));
     int limit = CountingPostfilter::NO_LIMIT;
     int offset = CountingPostfilter::NO_OFFSET;
     if (limit_node != NULL) {
@@ -182,45 +154,52 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     //
     // POST EXPRESSION
     //
-    AbstractExpression* post_expression = m_node->getPredicate();
+    AbstractExpression* post_expression = node->getPredicate();
     if (post_expression != NULL) {
         VOLT_DEBUG("Post Expression:\n%s", post_expression->debug(true).c_str());
     }
 
     // Initialize the postfilter
-    CountingPostfilter postfilter(m_outputTable, post_expression, limit, offset);
+    CountingPostfilter postfilter(m_tmpOutputTable, post_expression, limit, offset);
 
-    TableTuple temp_tuple;
+    // update local target table with its most recent reference
+    // The target table should be a persistent table.
+    PersistentTable* targetTable = static_cast<PersistentTable*>(node->getTargetTable());
+    assert(targetTable);
+    assert(targetTable == dynamic_cast<PersistentTable*>(node->getTargetTable()));
+    TableIndex* tableIndex = targetTable->index(node->getTargetIndexName());
+    assert(tableIndex);
+    IndexCursor indexCursor(tableIndex->getTupleSchema());
+
+    TableTuple tempTuple;
     ProgressMonitorProxy pmp(m_engine, this);
     if (m_aggExec != NULL) {
-        const TupleSchema * inputSchema = tableIndex->getTupleSchema();
-        if (m_projectionNode != NULL) {
-            inputSchema = m_projectionNode->getOutputTable()->schema();
-        }
-        temp_tuple = m_aggExec->p_execute_init(params, &pmp, inputSchema, m_outputTable, &postfilter);
-    } else {
-        temp_tuple = m_outputTable->tempTuple();
+        const TupleSchema * inputSchema = (m_projectionNode ?
+                                           m_projectionNode->getOutputTable()->schema() :
+                                           tableIndex->getTupleSchema());
+        tempTuple = m_aggExec->p_execute_init(params, &pmp, inputSchema,
+                                              m_tmpOutputTable, &postfilter);
     }
-
-    // Short-circuit an empty scan
-    if (m_node->isEmptyScan()) {
-        VOLT_DEBUG ("Empty Index Scan :\n %s", m_outputTable->debug().c_str());
-        if (m_aggExec != NULL) {
-            m_aggExec->p_execute_finish();
-        }
-        return true;
+    else {
+        tempTuple = m_tmpOutputTable->tempTuple();
     }
 
     //
     // SEARCH KEY
     //
+    int activeNumOfSearchKeys = m_numOfSearchKeys;
+    IndexLookupType localLookupType = m_lookupType;
+    SortDirectionType localSortDirection = m_sortDirection;
     bool earlyReturnForSearchKeyOutOfRange = false;
-
+    TableTuple searchKey(tableIndex->getKeySchema());
+    assert(m_lookupType != INDEX_LOOKUP_TYPE_EQ ||
+            searchKey.getSchema()->columnCount() == m_numOfSearchKeys);
+    searchKey.moveNoHeader(m_searchKeyBackingStore);
     searchKey.setAllNulls();
     VOLT_TRACE("Initial (all null) search key: '%s'", searchKey.debugNoHeader().c_str());
-
+    AbstractExpression** searchKeyExprArray = m_searchKeys.get();
     for (int ctr = 0; ctr < activeNumOfSearchKeys; ctr++) {
-        NValue candidateValue = m_searchKeyArray[ctr]->eval(NULL, NULL);
+        NValue candidateValue = searchKeyExprArray[ctr]->eval(NULL, NULL);
         if (candidateValue.isNull()) {
             // when any part of the search key is NULL, the result is false when it compares to anything.
             // do early return optimization, our index comparator may not handle null comparison correctly.
@@ -240,7 +219,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 
             // re-throw if not an overflow, underflow or variable length mismatch
             // currently, it's expected to always be an overflow or underflow
-            if ((e.getInternalFlags() & (SQLException::TYPE_OVERFLOW | SQLException::TYPE_UNDERFLOW | SQLException::TYPE_VAR_LENGTH_MISMATCH)) == 0) {
+            if ((e.getInternalFlags() & (SQLException::TYPE_OVERFLOW |
+                                         SQLException::TYPE_UNDERFLOW |
+                                         SQLException::TYPE_VAR_LENGTH_MISMATCH)) == 0) {
                 throw e;
             }
 
@@ -253,7 +234,6 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                 if (e.getInternalFlags() & SQLException::TYPE_OVERFLOW) {
                     if ((localLookupType == INDEX_LOOKUP_TYPE_GT) ||
                             (localLookupType == INDEX_LOOKUP_TYPE_GTE)) {
-
                         // gt or gte when key overflows returns nothing except inline agg
                         earlyReturnForSearchKeyOutOfRange = true;
                         break;
@@ -267,7 +247,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                         localLookupType = INDEX_LOOKUP_TYPE_LTE;
                     }
                 }
-                if (e.getInternalFlags() & SQLException::TYPE_UNDERFLOW) {
+                else if (e.getInternalFlags() & SQLException::TYPE_UNDERFLOW) {
                     if ((localLookupType == INDEX_LOOKUP_TYPE_LT) ||
                             (localLookupType == INDEX_LOOKUP_TYPE_LTE)) {
 
@@ -275,16 +255,14 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                         earlyReturnForSearchKeyOutOfRange = true;
                         break;
                     }
-                    else {
-                        // don't allow GTE because it breaks null handling
-                        localLookupType = INDEX_LOOKUP_TYPE_GT;
-                    }
+                    // don't allow GTE because it breaks null handling
+                    localLookupType = INDEX_LOOKUP_TYPE_GT;
                 }
-                if (e.getInternalFlags() & SQLException::TYPE_VAR_LENGTH_MISMATCH) {
+                else if (e.getInternalFlags() & SQLException::TYPE_VAR_LENGTH_MISMATCH) {
                     // shrink the search key and add the updated key to search key table tuple
                     searchKey.shrinkAndSetNValue(ctr, candidateValue);
-                    // search will be performed on shrinked key, so update lookup operation
-                    // to account for it
+                    // search will be performed on shrinked key,
+                    // so update the lookup operation to account for it
                     switch (localLookupType) {
                         case INDEX_LOOKUP_TYPE_LT:
                         case INDEX_LOOKUP_TYPE_LTE:
@@ -300,15 +278,15 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                     }
                 }
 
-                // if here, means all tuples with the previous searchkey
-                // columns need to be scanned. Note, if only one column,
-                // then all tuples will be scanned. Only exception to this
-                // case is setting of search key in search tuple was due
-                // to search key length exceeding the search column length
-                // of variable length type
+                // If here, all tuples with the previous searchkey
+                // columns need to be scanned. Note, if there is only one column,
+                // then all tuples will be scanned. The only exception to this
+                // case is when setting the search key in the search tuple exceeded
+                // the length restriction of the search column.
                 if (!(e.getInternalFlags() & SQLException::TYPE_VAR_LENGTH_MISMATCH)) {
-                    // for variable length mismatch error, the needed search key to perform the search
-                    // has been generated and added to the search tuple. So no need to decrement
+                    // for variable length mismatch error, the search key
+                    // needed to perform the search has been generated and
+                    // added to the search tuple. So no need to decrement
                     // activeNumOfSearchKeys
                     activeNumOfSearchKeys--;
                 }
@@ -319,7 +297,6 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             // if a EQ comparison is out of range, then return no tuples
             else {
                 earlyReturnForSearchKeyOutOfRange = true;
-                break;
             }
             break;
         }
@@ -338,21 +315,21 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     //
     // END EXPRESSION
     //
-    AbstractExpression* end_expression = m_node->getEndExpression();
-    if (end_expression != NULL) {
-        VOLT_DEBUG("End Expression:\n%s", end_expression->debug(true).c_str());
+    AbstractExpression* endExpression = node->getEndExpression();
+    if (endExpression != NULL) {
+        VOLT_DEBUG("End Expression:\n%s", endExpression->debug(true).c_str());
     }
 
     // INITIAL EXPRESSION
-    AbstractExpression* initial_expression = m_node->getInitialExpression();
-    if (initial_expression != NULL) {
-        VOLT_DEBUG("Initial Expression:\n%s", initial_expression->debug(true).c_str());
+    AbstractExpression* initialExpression = node->getInitialExpression();
+    if (initialExpression != NULL) {
+        VOLT_DEBUG("Initial Expression:\n%s", initialExpression->debug(true).c_str());
     }
 
     //
     // SKIP NULL EXPRESSION
     //
-    AbstractExpression* skipNullExpr = m_node->getSkipNullPredicate();
+    AbstractExpression* skipNullExpr = node->getSkipNullPredicate();
     // For reverse scan edge case NULL values and forward scan underflow case.
     if (skipNullExpr != NULL) {
         VOLT_DEBUG("COUNT NULL Expression:\n%s", skipNullExpr->debug(true).c_str());
@@ -399,7 +376,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             else {
                 while (!(tuple = tableIndex->nextValue(indexCursor)).isNullTuple()) {
                     pmp.countdownProgress();
-                    if (initial_expression != NULL && !initial_expression->eval(&tuple, NULL).isTrue()) {
+                    if (initialExpression != NULL && !initialExpression->eval(&tuple, NULL).isTrue()) {
                         // just passed the first failed entry, so move 2 backward
                         tableIndex->moveToBeforePriorEntry(indexCursor);
                         break;
@@ -444,25 +421,25 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             if (skipNullExpr->eval(&tuple, NULL).isTrue()) {
                 VOLT_DEBUG("Index scan: find out null rows or columns.");
                 continue;
-            } else {
-                skipNullExpr = NULL;
             }
+            skipNullExpr = NULL;
         }
         //
         // First check whether the end_expression is now false
         //
-        if (end_expression != NULL && !end_expression->eval(&tuple, NULL).isTrue()) {
+        if (endExpression != NULL && ! endExpression->eval(&tuple, NULL).isTrue()) {
             VOLT_TRACE("End Expression evaluated to false, stopping scan");
             break;
         }
+
         //
         // Then apply our post-predicate and LIMIT/OFFSET to do further filtering
         //
         if (postfilter.eval(&tuple, NULL)) {
 
             if (m_projector.numSteps() > 0) {
-                m_projector.exec(temp_tuple, tuple);
-                outputTuple(postfilter, temp_tuple);
+                m_projector.exec(tempTuple, tuple);
+                outputTuple(postfilter, tempTuple);
             }
             else {
                 outputTuple(postfilter, tuple);
@@ -471,17 +448,16 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         }
     }
 
-    if (m_aggExec != NULL) {
+    if (m_aggExec) {
         m_aggExec->p_execute_finish();
     }
 
-
-    VOLT_DEBUG ("Index Scanned :\n %s", m_outputTable->debug().c_str());
+    VOLT_DEBUG ("Index Scanned :\n %s", m_tmpOutputTable->debug().c_str());
     return true;
 }
 
 void IndexScanExecutor::outputTuple(CountingPostfilter& postfilter, TableTuple& tuple) {
-    if (m_aggExec != NULL) {
+    if (m_aggExec) {
         m_aggExec->p_execute_tuple(tuple);
         return;
     }
