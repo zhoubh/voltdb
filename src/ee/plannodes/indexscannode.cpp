@@ -42,10 +42,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include "indexscannode.h"
 
-#include "common/debuglog.h"
-#include "expressions/abstractexpression.h"
+#include "boost/foreach.hpp"
 
 #include <sstream>
 
@@ -58,36 +58,38 @@ PlanNodeType IndexScanPlanNode::getPlanNodeType() const { return PLAN_NODE_TYPE_
 std::string IndexScanPlanNode::debugInfo(const std::string &spacer) const
 {
     std::ostringstream buffer;
-    buffer << AbstractScanPlanNode::debugInfo(spacer);
-    buffer << spacer << "TargetIndexName[" << m_target_index_name << "]\n";
-    buffer << spacer << "IndexLookupType["
-           << indexLookupToString(m_lookup_type) << "]\n";
-    buffer << spacer << "SortDirection["
-           << sortDirectionToString(m_sort_direction) << "]\n";
-
-    buffer << spacer << "SearchKey Expressions:\n";
-    for (int ctr = 0, cnt = (int)m_searchkey_expressions.size(); ctr < cnt; ctr++) {
-        buffer << m_searchkey_expressions[ctr]->debug(spacer);
+    buffer << AbstractScanPlanNode::debugInfo(spacer)
+           << spacer << "TargetIndexName[" << m_target_index_name << "]\n"
+           << spacer << "IndexLookupType["
+           << indexLookupToString(m_lookup_type) << "]\n"
+           << spacer << "SortDirection["
+           << sortDirectionToString(m_sort_direction) << "]\n"
+           << spacer << "SearchKey Expressions:\n";
+    BOOST_FOREACH(auto searchkey, m_searchkey_expressions) {
+        buffer << searchkey->debug(spacer);
     }
 
     buffer << spacer << "End Expression: ";
     if (m_end_expression != NULL) {
         buffer << "\n" << m_end_expression->debug(spacer);
-    } else {
+    }
+    else {
         buffer << "<NULL>\n";
     }
 
     buffer << spacer << "Skip Null Expression: ";
     if (m_skip_null_predicate != NULL) {
         buffer << "\n" << m_skip_null_predicate->debug(spacer);
-    } else {
+    }
+    else {
         buffer << "<NULL>\n";
     }
 
     buffer << spacer << "Post-Scan Expression: ";
     if (m_predicate != NULL) {
         buffer << "\n" << m_predicate->debug(spacer);
-    } else {
+    }
+    else {
         buffer << "<NULL>\n";
     }
     return buffer.str();
@@ -100,16 +102,22 @@ void IndexScanPlanNode::loadFromJSONObject(PlannerDomValue obj)
     std::string lookupTypeString = obj.valueForKey("LOOKUP_TYPE").asStr();
     m_lookup_type = stringToIndexLookup(lookupTypeString);
 
+    m_target_index_name = obj.valueForKey("TARGET_INDEX_NAME").asStr();
+
     std::string sortDirectionString = obj.valueForKey("SORT_DIRECTION").asStr();
     m_sort_direction = stringToSortDirection(sortDirectionString);
 
-    m_target_index_name = obj.valueForKey("TARGET_INDEX_NAME").asStr();
-
-    m_end_expression.reset(loadExpressionFromJSONObject("END_EXPRESSION", obj));
     m_initial_expression.reset(loadExpressionFromJSONObject("INITIAL_EXPRESSION", obj));
     m_skip_null_predicate.reset(loadExpressionFromJSONObject("SKIP_NULL_PREDICATE", obj));
 
     m_searchkey_expressions.loadExpressionArrayFromJSONObject("SEARCHKEY_EXPRESSIONS", obj);
+#ifndef NDEBUG
+    BOOST_FOREACH(auto searchKey, m_searchkey_expressions) {
+        assert(searchKey);
+    }
+#endif
+
+    m_end_expression.reset(loadExpressionFromJSONObject("END_EXPRESSION", obj));
 }
 
 } // namespace voltdb

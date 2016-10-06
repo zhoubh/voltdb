@@ -23,17 +23,14 @@
 
 package org.voltdb.regressionsuites;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.TreeSet;
 
 import org.voltdb.BackendTarget;
-import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -48,20 +45,10 @@ import org.voltdb_testprocs.regressionsuites.indexes.Insert;
  */
 
 public class TestIndexesSuite extends RegressionSuite {
-
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { Insert.class,
-        CheckMultiMultiIntGTEFailure.class, CompiledInLists.class};
+    private static final Class<?>[] PROCEDURES = { };
 
-    private void truncateTables(String[] tables) throws IOException, ProcCallException {
-        Client client = getClient();
-        for (String tb : tables) {
-            client.callProcedure("@AdHoc", "Truncate table " + tb);
-        }
-    }
-    public void testOrderedIntIndex()
-            throws IOException, ProcCallException
-    {
+    public void testOrderedIntIndex() throws Exception {
         subTestOrderedMultiMultiPrefixOnly();
         subTestOrderedUniqueOneColumnIntIndex();
         subTestOrderedMultiOneColumnIntIndex();
@@ -79,186 +66,121 @@ public class TestIndexesSuite extends RegressionSuite {
 
     //
     // Multimap multi column, indexing only on prefix key
-    // @throws IOException
-    // @throws ProcCallException
+    // @throws Exception
     //
-    private void subTestOrderedMultiMultiPrefixOnly()
-    throws IOException, ProcCallException
-    {
+    private void subTestOrderedMultiMultiPrefixOnly() throws Exception {
         String[] tables = {"P3", "R3"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
-            String query = String.format("select * from %s T where T.NUM > 100", table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
-
-            String queryEq = String.format("select * from %s T where T.NUM = 200", table);
-            VoltTable[] resultsEq = client.callProcedure("@AdHoc", queryEq).getResults();
-            assertEquals(2, resultsEq[0].getRowCount());
+            String query = "select * from " + table + " T where T.NUM > 100";
+            validateQueryResultRowCount(client, 4, query);
+            String queryEq = "select * from " + table + " T where T.NUM = 200";
+            validateQueryResultRowCount(client, 2, queryEq);
         }
 
-        truncateTables(tables);
+        truncateTables(client, tables);
     }
 
-    private void subTestOrderedUniqueOneColumnIntIndex()
-    throws IOException, ProcCallException
-    {
+    private void subTestOrderedUniqueOneColumnIntIndex() throws Exception {
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
-            String query = String.format("select * from %s T where T.ID > 1",
-                                         table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(5, results[0].getRowCount());
+            String query = "select * from " + table + " T where T.ID > 1";
+            validateQueryResultRowCount(client, 5, query);
             // make sure that we work if the value we want isn't present
-            query = String.format("select * from %s T where T.ID > 4",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(3, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID > 8",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID >= 1",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(6, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID >= 4",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(3, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID >= 9",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID > 1 and T.ID < 6",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(2, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID > 1 and T.ID <= 6",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(3, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID > 1 and T.ID <= 5",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(2, results[0].getRowCount());
-            query = String.format("select * from %s T where T.ID >= 1 and T.ID < 7",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
+            query = "select * from " + table + " T where T.ID > 4";
+            validateQueryResultRowCount(client, 3, query);
+            query = "select * from " + table + " T where T.ID > 8";
+            validateQueryResultRowCount(client, 0, query);
+            query = "select * from " + table + " T where T.ID >= 1";
+            validateQueryResultRowCount(client, 6, query);
+            query = "select * from " + table + " T where T.ID >= 4";
+            validateQueryResultRowCount(client, 3, query);
+            query = "select * from " + table + " T where T.ID >= 9";
+            validateQueryResultRowCount(client, 0, query);
+            query = "select * from " + table + " T where T.ID > 1 and T.ID < 6";
+            validateQueryResultRowCount(client, 2, query);
+            query = "select * from " + table + " T where T.ID > 1 and T.ID <= 6";
+            validateQueryResultRowCount(client, 3, query);
+            query = "select * from " + table + " T where T.ID > 1 and T.ID <= 5";
+            validateQueryResultRowCount(client, 2, query);
+            query = "select * from " + table + " T where T.ID >= 1 and T.ID < 7";
+            validateQueryResultRowCount(client, 4, query);
             // Check that >= work in conjunction with <
             // run over the end of the index to catch the keyIterate bug
             // in the first >= index fix
-            query = String.format("select * from %s T where T.ID >= 1 and T.ID < 10",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(6, results[0].getRowCount());
-            // XXX THIS CASE CURRENTLY FAILS
-            // SEE TICKET 194
-//            query = String.format("select * from %s T where T.ID >= 2.9",
-//                                  table);
-//            results = client.callProcedure("@AdHoc", query);
-//            assertEquals(4, results[0].getRowCount());
+            query = "select * from " + table + " T where T.ID >= 1 and T.ID < 10";
+            validateQueryResultRowCount(client, 6, query);
+            // Check fix for ENG-194.
+            query = "select * from " + table + " T where T.ID >= 2.9";
+            validateQueryResultRowCount(client, 4, query);
         }
 
-        truncateTables(tables);
+        truncateTables(client, tables);
     }
 
     //
     // Multimap single column
-    // @throws IOException
-    // @throws ProcCallException
+    // @throws Exception
     //
-    private void subTestOrderedMultiOneColumnIntIndex()
-    throws IOException, ProcCallException
-    {
+    private void subTestOrderedMultiOneColumnIntIndex() throws Exception {
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
-            String query = String.format("select * from %s T where T.NUM > 100",
-                                         table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM > 150",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM > 300",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM >= 100",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(6, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM >= 150",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM >= 301",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM > 100 and T.NUM < 300",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(2, results[0].getRowCount());
+            String query = "select * from " + table + " T where T.NUM > 100";
+            validateQueryResultRowCount(client, 4, query);
+            query = "select * from " + table + " T where T.NUM > 150";
+            validateQueryResultRowCount(client, 4, query);
+            query = "select * from " + table + " T where T.NUM > 300";
+            validateQueryResultRowCount(client, 0, query);
+            query = "select * from " + table + " T where T.NUM >= 100";
+            validateQueryResultRowCount(client, 6, query);
+            query = "select * from " + table + " T where T.NUM >= 150";
+            validateQueryResultRowCount(client, 4, query);
+            query = "select * from " + table + " T where T.NUM >= 301";
+            validateQueryResultRowCount(client, 0, query);
+            query = "select * from " + table + " T where T.NUM > 100 and T.NUM < 300";
+            validateQueryResultRowCount(client, 2, query);
             // Check that >= work in conjunction with <
             // run over the end of the index to catch the keyIterate bug
             // in the first >= index fix
-            query = String.format("select * from %s T where T.NUM >= 100 and T.NUM < 400",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(6, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM = 100",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(2, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM > 100 and T.NUM <= 300",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM > 100 and T.NUM <= 250",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(2, results[0].getRowCount());
-            query = String.format("select * from %s T where T.NUM > 100 and T.NUM <= 250",
-                                  table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(2, results[0].getRowCount());
+            query = "select * from " + table + " T where T.NUM >= 100 and T.NUM < 400";
+            validateQueryResultRowCount(client, 6, query);
+            query = "select * from " + table + " T where T.NUM = 100";
+            validateQueryResultRowCount(client, 2, query);
+            query = "select * from " + table + " T where T.NUM > 100 and T.NUM <= 300";
+            validateQueryResultRowCount(client, 4, query);
+            query = "select * from " + table + " T where T.NUM > 100 and T.NUM <= 250";
+            validateQueryResultRowCount(client, 2, query);
+            query = "select * from " + table + " T where T.NUM > 100 and T.NUM <= 250";
+            validateQueryResultRowCount(client, 2, query);
         }
 
-        truncateTables(tables);
+        truncateTables(client, tables);
     }
 
     /**
      * Multimap one column less than.
      */
-    private void subTestOrderedMultiOneColumnIndexLessThan()
-    throws IOException, ProcCallException
-    {
+    private void subTestOrderedMultiOneColumnIndexLessThan() throws Exception {
         Client client = getClient();
         client.callProcedure("Insert", "P3", 0, "a", 1, 2, 1.0);
         client.callProcedure("Insert", "P3", 1, "b", 1, 2, 2.0);
@@ -290,43 +212,42 @@ public class TestIndexesSuite extends RegressionSuite {
                        .getResults()[0];
         assertEquals(4, result.getRowCount());
 
-        truncateTables(new String[]{"P3"});
+        truncateTables(client, "P3");
     }
 
     //
     // Multimap multi column
-    // @throws IOException
-    // @throws ProcCallException
+    // @throws Exception
     //
-    private void subTestOrderedMultiMultiColumnIntIndex()
-    throws IOException, ProcCallException
-    {
+    private void subTestOrderedMultiMultiColumnIntIndex() throws Exception {
         String[] tables = {"P3", "R3"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
-            String query = String.format("select * from %s T where T.NUM > 100 AND T.NUM2 > 1",
-                                         table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(4, results[0].getRowCount());
+            String query = "select * from " +
+                    table + " T where T.NUM > 100 AND T.NUM2 > 1";
+            validateQueryResultRowCount(client, 4, query);
         }
 
-        truncateTables(tables);
+        truncateTables(client, tables);
     }
 
-    private void subTestOrderedMultiMultiIntGTEFailure()
-    throws IOException, ProcCallException
-    {
+    private void validateQueryResultRowCount(Client client,
+            int count, String query) throws Exception {
+        VoltTable[] result = client.callProcedure("@AdHoc", query).getResults();
+        assertEquals(count, result[0].getRowCount());
+    }
+
+    private void subTestOrderedMultiMultiIntGTEFailure() throws Exception {
         final Client client = getClient();
         final VoltTable results[] = client.callProcedure("CheckMultiMultiIntGTEFailure").getResults();
         if (results == null) {
-            fail();
+            fail("Unexpected null return from test stored proc.");
         }
         //
         // Must pass 10 tests
@@ -438,8 +359,7 @@ public class TestIndexesSuite extends RegressionSuite {
         assertEquals( -1, rowLT0.getLong(0));
         assertEquals( 0, rowLT0.getLong(1));
 
-
-        truncateTables(new String[]{"BINGO_BOARD"});
+        truncateTables(client, "BINGO_BOARD");
     }
 
     private static void compareTable(VoltTable vt, Object [][] expected) {
@@ -459,9 +379,7 @@ public class TestIndexesSuite extends RegressionSuite {
         assertEquals( ((Double)expected[4]).doubleValue(), vt.getDouble(4), 0.001);
     }
 
-    public void testInList()
-            throws IOException, ProcCallException
-    {
+    public void testInList() throws Exception {
         String[] tables = {"P3", "R3"};
         Object [] line1 = new Object[] {1, "a", 100, 1, 14.5};
         Object [] line2 = new Object[] {2, "b", 100, 2, 15.5};
@@ -505,15 +423,16 @@ public class TestIndexesSuite extends RegressionSuite {
                 "     ohms.keyH IN (1000,3000) " +
                 " ORDER BY amps.sort1 DESC; " +
                 "";
-//DEBUG        results = client.callProcedure("@Explain", query).getResults();
-//DEBUG        System.out.println(results[0]);
+        //* enable to debug */ results = client.callProcedure("@Explain", query).getResults();
+        //* enable to debug */ System.out.println(results[0]);
 
         results = client.callProcedure("@AdHoc", query).getResults();
-        System.out.println(results[0]);
+        //* enable to debug */ System.out.println(results[0]);
         try {
             assertEquals(10, results[0].asScalarLong());
-        } catch (IllegalStateException not_one) {
-            fail("IN LIST test query rerurned wrong number of rows: " + not_one);
+        }
+        catch (IllegalStateException not_one) {
+            fail("IN LIST test query returned wrong number of rows: " + not_one);
         }
 /* TODO: enable and investigate:
  queries like this were causing column index resolution errors.
@@ -523,13 +442,13 @@ public class TestIndexesSuite extends RegressionSuite {
             " and P3.NUM IN (200, 300)" +
             "";
             results = client.callProcedure("@Explain", query).getResults();
-            System.out.println(results[0]);
+            //* enable to debug *-/ System.out.println(results[0]);
 
         query = "select * from R3, P3 where R3.NUM2 = P3.NUM2 " +
             " and P3.NUM IN (200, 300)" +
             "";
             results = client.callProcedure("@Explain", query).getResults();
-            System.out.println(results[0]);
+            //* enable to debug *-/ System.out.println(results[0]);
 */
         for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
@@ -539,94 +458,88 @@ public class TestIndexesSuite extends RegressionSuite {
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
 
-            query = String.format("select * from %s T where T.NUM IN (200, 300) ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.NUM IN (200, 300) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.NUM IN (10, 200, 300, -1) ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.NUM IN (10, 200, 300, -1) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.NUM IN (10, 200, 300, -1, 200) ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.NUM IN (10, 200, 300, -1, 200) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.NUM IN (200) ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.NUM IN (200) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6});
 
-            query = String.format("select * from %s T where T.NUM IN (10)", table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
+            query = "select * from " + table + " T where T.NUM IN (10)";
+            validateQueryResultRowCount(client, 0, query);
 
-            //query = String.format("select * from %s T where T.NUM IN ()", table);
-            //results = client.callProcedure("@AdHoc", query).getResults();
-            //assertEquals(0, results[0].getRowCount());
+            //query = "select * from " + table + " T where T.NUM IN ()";
+            //validateQueryResultRowCount(client, 0, query);
 
-            query = String.format("select * from %s T where T.DESC IN ('c', 'f', 'g', 'h') ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.DESC IN ('c', 'f', 'g', 'h') ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.DESC IN ('', 'c', 'f', 'g', 'h', " +
+            query = "select * from " + table + " T where T.DESC IN ('', 'c', 'f', 'g', 'h', " +
                 "'a value with some length to it in case there are object allocation issues'" +
-                ") ORDER BY T.ID", table);
+                ") ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-
-            query = String.format("select * from %s T where T.DESC " +
-                    "IN ('', 'c', 'f', 'g', 'h', 'f') ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.DESC " +
+                    "IN ('', 'c', 'f', 'g', 'h', 'f') ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.DESC IN ('a')", table);
+            query = "select * from " + table + " T where T.DESC IN ('a')";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             compareRow(results[0], line1);
 
-            query = String.format("select * from %s T where T.DESC IN ('b')", table);
+            query = "select * from " + table + " T where T.DESC IN ('b')";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             compareRow(results[0], line2);
 
-            query = String.format("select * from %s T where T.DESC IN ('')", table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
+            query = "select * from " + table + " T where T.DESC IN ('')";
+            validateQueryResultRowCount(client, 0, query);
 
-
-            query = String.format("select * from %s T where T.DESC IN ('c', 'f', 'g', 'h')" +
-                " and T.NUM IN (200, 300) ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.DESC IN ('c', 'f', 'g', 'h')" +
+                " and T.NUM IN (200, 300) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.DESC IN ('', 'c', 'f', 'g', 'h', " +
+            query = "select * from " + table + " T where T.DESC IN ('', 'c', 'f', 'g', 'h', " +
                 "'a value with some length to it in case there are object allocation issues'" +
                 ")" +
-                " and T.NUM IN (10, 200, 300, -1) ORDER BY T.ID", table);
+                " and T.NUM IN (10, 200, 300, -1) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.DESC IN ('', 'c', 'f', 'g', 'h', 'f')" +
-                " and T.NUM IN (10, 200, 300, -1, 200) ORDER BY T.ID", table);
+            query = "select * from " + table + " T where T.DESC IN ('', 'c', 'f', 'g', 'h', 'f')" +
+                " and T.NUM IN (10, 200, 300, -1, 200) ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line3,line6,line7,line8});
 
-            query = String.format("select * from %s T where T.DESC IN ('a')" +
-                    " and T.NUM IN (100)", table);
+            query = "select * from " + table + " T where T.DESC IN ('a')" +
+                    " and T.NUM IN (100)";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             compareRow(results[0], line1);
 
-            query = String.format("select * from %s T where T.DESC IN ('b')" +
-                " and T.NUM IN (100)", table);
+            query = "select * from " + table + " T where T.DESC IN ('b')" +
+                " and T.NUM IN (100)";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             compareRow(results[0], line2);
 
-            query = String.format("select * from %s T where T.DESC IN ('')" +
-                 " and T.NUM IN (10)", table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].getRowCount());
+            query = "select * from " + table + " T where T.DESC IN ('')" +
+                 " and T.NUM IN (10)";
+            validateQueryResultRowCount(client, 0, query);
 
 //            Current table is P3, results:
 //                header size: 46
@@ -642,27 +555,27 @@ public class TestIndexesSuite extends RegressionSuite {
 
             // try some DML -- but try not to actually update values except to themselves
             // -- that just makes it harder to profile expected results down the line
-            query = String.format("delete from %s where DESC IN ('')" +
-                    " and NUM IN (111,112)", table);
+            query = "delete from " + table + " where DESC IN ('')" +
+                    " and NUM IN (111,112)";
             results = client.callProcedure("@AdHoc", query).getResults();
-            System.out.println("Delete results:" + results[0]);
+            //* enable to debug */ System.out.println("Delete results:" + results[0]);
             assertEquals(1, results[0].getRowCount());
             results[0].advanceRow();
             assertEquals(0, results[0].getLong(0));
 
-            query = String.format("select * from %s T ORDER BY T.ID", table);
+            query = "select * from " + table + " T ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line1,line2,line3,line6,line7,line8});
 
             // Try delete with in
-            query = String.format("delete from %s where DESC IN ('x','y', 'b','z')" +
-                    " and NUM IN (119,100)", table);
+            query = "delete from " + table + " where DESC IN ('x','y', 'b','z')" +
+                    " and NUM IN (119,100)";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             results[0].advanceRow();
             assertEquals(1, results[0].getLong(0));
 
-            query = String.format("select * from %s T ORDER BY T.ID", table);
+            query = "select * from " + table + " T ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(5, results[0].getRowCount());
             compareTable(results[0], new Object [][] {line1,line3,line6,line7,line8});
@@ -673,26 +586,26 @@ public class TestIndexesSuite extends RegressionSuite {
             assertEquals(1, results[0].getLong(0));
 
             // Test update with IN
-            query = String.format("update %s set num2 = 10 where DESC IN ('x', 'y', 'z', 'c')", table);
+            query = "update " + table + " set num2 = 10 where DESC IN ('x', 'y', 'z', 'c')";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             results[0].advanceRow();
             assertEquals(1, results[0].getLong(0));
 
-            query = String.format("select id, desc from %s where num2 = 10 ", table);
+            query = "select id, desc from " + table + " where num2 = 10 ";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             results[0].advanceRow();
             assertEquals(3, results[0].getLong(0));
             assertEquals("c", results[0].getString(1));
 
-            query = String.format("update %s set num2 = 3 where DESC = 'c'", table);
+            query = "update " + table + " set num2 = 3 where DESC = 'c'";
             results = client.callProcedure("@AdHoc", query).getResults();
             assertEquals(1, results[0].getRowCount());
             results[0].advanceRow();
             assertEquals(1, results[0].getLong(0));
 
-            query = String.format("select * from %s T ORDER BY T.ID", table);
+            query = "select * from " + table + " T ORDER BY T.ID";
             results = client.callProcedure("@AdHoc", query).getResults();
             compareTable(results[0], new Object [][] {line1,line2,line3,line6,line7,line8});
 
@@ -778,20 +691,35 @@ public class TestIndexesSuite extends RegressionSuite {
             assertEquals(1, results.length);
             assertEquals(5, results[0].getRowCount());
         }
-        results = client.callProcedure("InlinedInListP3with5NUMs",  (Object[])manyObjNums).getResults();
-        assertEquals(1, results.length);
-        assertEquals(4, results[0].getRowCount());
-        results = client.callProcedure("InlinedInListR3with5NUMs",  (Object[])manyObjNums).getResults();
-        assertEquals(1, results.length);
-        assertEquals(4, results[0].getRowCount());
-        // Passing Object vectors as single parameters is not allowed.
+
+       String[] fiveNumProcs = new String[] {
+                "InlinedInListR3with5NUMs",
+                "InlinedInListP3with5NUMs"};
+        for (String fiveNumProc : fiveNumProcs) {
+            results = client.callProcedure(fiveNumProc,  (Object[])manyObjNums).getResults();
+            assertEquals(1, results.length);
+            assertEquals(4, results[0].getRowCount());
+
+            // Passing non-Object vectors to multiple parameters is not allowed.
+            try {
+                results = client.callProcedure(fiveNumProc, manynums).getResults();
+                fail("Get no parameter error from trying to pass off " +
+                        "int[5] as 5 int parameters to " + fiveNumProc);
+            }
+            catch (ProcCallException pce) {
+                String caught = pce.getMessage();
+                String pattern = "EXPECTS 5 PARAMS, BUT RECEIVED 1";
+                assertTrue("Calling " + fiveNumProc +
+                        " the caught exception's message: \"" + caught +
+                        "\" did not contain the expected pattern: \"" + pattern +
+                        "\"", caught.contains(pattern));
+            }
+        }
         // if ( ! isHSQL()) {
         //     results = client.callProcedure("InlinedInListP3withNUMs", (Object)manyObjNums).getResults();
         //     assertEquals(1, results.length);
         //     assertEquals(4, results[0].getRowCount());
         //        }
-        //TODO: test as type failure:
-        //results = client.callProcedure("InlinedInListP3with5NUMs", manynums).getResults();
         //TODO: test as type failure:
         //results = client.callProcedure("InlinedInListR3with5NUMs", manynums).getResults();
         if ( ! isHSQL()) {
@@ -832,7 +760,7 @@ public class TestIndexesSuite extends RegressionSuite {
 
     }
 
-    public void testRegressEdgeCases() throws IOException, ProcCallException, InterruptedException {
+    public void testRegressEdgeCases() throws Exception {
         subTestParameterizedLimitOnIndexScan();
         subTestPushDownAggregateWithLimit();
 
@@ -844,31 +772,28 @@ public class TestIndexesSuite extends RegressionSuite {
         subTestKeyCastingOverflow();
     }
 
-    private void subTestParameterizedLimitOnIndexScan()
-            throws IOException, ProcCallException {
+    private void subTestParameterizedLimitOnIndexScan() throws Exception {
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
-
-            VoltTable[] results = client.callProcedure("Eng397LimitIndex" + table, new Integer(2)).getResults();
+            VoltTable[] results = client.callProcedure("Eng397LimitIndex" + table,
+                    new Integer(2)).getResults();
             assertEquals(2, results[0].getRowCount());
         }
 
-        truncateTables(tables);
+        truncateTables(client, tables);
     }
 
-    private void subTestPushDownAggregateWithLimit() throws IOException, ProcCallException {
+    private void subTestPushDownAggregateWithLimit() throws Exception {
         String[] tables = {"R1", "P1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
@@ -877,18 +802,21 @@ public class TestIndexesSuite extends RegressionSuite {
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
             client.callProcedure("Insert", table, 9, "h", 300, 8, 19.5);
 
-            String sql = String.format("select T.ID, MIN(T.ID) from %s T group by T.ID order by T.ID limit 4",
-                    table);
-            VoltTable results = client.callProcedure("@AdHoc", sql).getResults()[0];
-            System.out.println(results);
+            String sql = "select T.ID, MIN(T.ID) from " + table +
+                    " T group by T.ID order by T.ID limit 4";
+            //* enable to debug */ VoltTable[] results =
+            client.callProcedure("@AdHoc", sql).getResults();
+            //* enable to debug */ System.out.println(results[0]);
         }
 
-        truncateTables(tables);
+        truncateTables(client, tables);
     }
 
-    private void subTestNaNInIndexes() throws IOException, ProcCallException {
+    private void subTestNaNInIndexes() throws Exception {
         // current hsql seems to fail on null handling
-        if (isHSQL()) return;
+        if (isHSQL()) {
+            return;
+        }
 
         Client client = getClient();
 
@@ -910,49 +838,38 @@ public class TestIndexesSuite extends RegressionSuite {
             client.callProcedure("R1IX.insert", i++, "n", 100 * i, 10.5);
         }
 
-        VoltTable results = client.callProcedure("@AdHoc", "delete from R1IX;").getResults()[0];
-        System.out.println(results);
+        //* enable to debug */ VoltTable[] results =
+        client.callProcedure("@AdHoc", "delete from R1IX;").getResults();
+        //* enable to debug */ System.out.println(results[0]);
     }
 
-    private void subTestTicket195()
-    throws IOException, ProcCallException
-    {
+    private void subTestTicket195() throws Exception {
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : tables) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
-            String query = String.format("select * from %s T where T.NUM >= 100 and T.NUM <= 400",
-                                  table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(6, results[0].getRowCount());
+            String query = "select * from " + table + " T where T.NUM >= 100 and T.NUM <= 400";
+            validateQueryResultRowCount(client, 6, query);
         }
     }
 
-
-
-    void callHelper(Client client, String procname, Object ...objects )
-    throws InterruptedException, IOException
-    {
-        NullCallback nullCallback = new NullCallback();
-        boolean done;
-        do {
-            done = client.callProcedure(nullCallback, procname, objects);
-            if (!done) {
-                client.backpressureBarrier();
-            }
-        } while(!done);
+    void callHelper(Client client, String procname, Object... objects)
+            throws Exception {
+        NullCallback nullCallback = NullCallback.instance();
+        // Try to queue the procedure call until successful.
+        while ( ! client.callProcedure(nullCallback, procname, objects)) {
+            client.backpressureBarrier();
+        }
     }
 
     // Testing ENG-506 but this probably isn't enough to trust...
-    private void subTestUpdateRange() throws IOException, ProcCallException, InterruptedException {
+    private void subTestUpdateRange() throws Exception {
         final Client client = getClient();
-        VoltTable[] results;
 
         callHelper(client, "InsertR1IX", 960, "ztgiZQdUtVJeaPLjN", 1643, 4.95657525992782899138e-01);
         callHelper(client, "InsertR1IX", 961, "ztgiZQdUtVJeaPLjN", 1643, 4.95657525992782899138e-01);
@@ -972,7 +889,11 @@ public class TestIndexesSuite extends RegressionSuite {
         callHelper(client, "InsertR1IX", 989, "XtQOuGWNzVKtrpnMj", 32677, 3.98623510723492113783e-01);
 
         // add NaN for fun
-        if (!isHSQL()) {
+        int correction = 0;
+        if (isHSQL()) {
+            correction = -1;
+        }
+        else {
             callHelper(client, "InsertR1IX", 974, "XtQOuGWNzVKtrpnMj", 32677, 0.0 / 0.0);
         }
 
@@ -1157,49 +1078,39 @@ public class TestIndexesSuite extends RegressionSuite {
 
         client.drain();
 
-        results = client.callProcedure("@AdHoc", "select * from R1IX").getResults();
-        System.out.printf("Table has %d rows.\n", results[0].getRowCount());
-        System.out.println(results[0]);
+        //* enable to debug */ results = client.callProcedure("@AdHoc", "select * from R1IX").getResults();
+        //* enable to debug */ System.out.println("Table has " + results[0].getRowCount() + " rows.");
+        //* enable to debug */ System.out.println(results[0]);
 
-        results = client.callProcedure("Eng506UpdateRange", 51, 17).getResults();
+        VoltTable[] results = client.callProcedure("Eng506UpdateRange", 51, 17).getResults();
         assertNotNull(results);
         assertEquals(1, results.length);
-        VoltTable result = results[0];
-        long modified = result.fetchRow(0).getLong(0);
-        System.out.printf("Update statement modified %d rows.\n", modified);
-
-        if (isHSQL()) {
-            assertEquals(16, modified);
-        }
-        else {
-            // extra NaN row got added if not HSQL
-            // for now, this query includes the NaN value, but it shouldn't forever
-            assertEquals(17, modified);
-        }
+        validateDMLTupleCount(results[0], "Call to Eng506UpdateRange", 17 + correction);
 
         // check we can clear out with a NaN involved
-        results = client.callProcedure("@AdHoc", "delete from R1IX").getResults();
+        validateDMLTupleCount(client, "delete from R1IX", 17 + correction);
     }
 
-    private void subTestKeyCastingOverflow() throws NoConnectionsException, IOException, ProcCallException {
+    private void subTestKeyCastingOverflow() throws Exception {
         Client client = getClient();
 
-        ClientResponseImpl cr =
-                (ClientResponseImpl) client.callProcedure("@AdHoc",
-                                                          "select * from P1 where ID = ?;", 0);
-        assertEquals(cr.getStatus(), ClientResponse.SUCCESS);
+        ClientResponse cr = client.callProcedure(
+                "@AdHoc", "select * from P1 where ID = ?;", 0);
+        assertEquals(ClientResponse.SUCCESS, cr.getStatus());
 
         try {
-            cr = (ClientResponseImpl) client.callProcedure("@AdHoc",
-                                                           "select * from P1 where ID = ?;", 6000000000L);
-            fail();
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("tryToMakeCompatible: The provided value: (6000000000) of type:"
+            cr = client.callProcedure(
+                    "@AdHoc", "select * from P1 where ID = ?;", 6000000000L);
+            fail("An out of range int value was not detected.");
+        }
+        catch (Exception ex) {
+            assertTrue(ex.getMessage().contains(
+                    "tryToMakeCompatible: The provided value: (6000000000) of type:"
                     + " java.lang.Long is not a match or is out of range for the target parameter type: int"));
         }
     }
 
-    public void testVarbinaryIndex() throws NoConnectionsException, IOException, ProcCallException {
+    public void testVarbinaryIndex() throws Exception {
         Client client = getClient();
         String sql, explainPlanStr;
 
@@ -1228,9 +1139,9 @@ public class TestIndexesSuite extends RegressionSuite {
         validateTableColumnOfScalarVarbinary(client, sql, new String[]{"ABCD", "ABEF"});
 
         // ENG-9032 (when this ticket is fixed, uncomment the test case next)
-//        sql = "select varb2 from varbinaryTableTree where varb2 < x'ACEF' order by varb2";
-//        checkQueryPlan(client, sql, explainPlanStr);
-//        validateTableColumnOfScalarVarbinary(client, sql, new String[]{"ABCD", "ABEF"});
+        sql = "select varb2 from varbinaryTableTree where varb2 < x'ACEF' order by varb2";
+        checkQueryPlan(client, sql, explainPlanStr);
+        validateTableColumnOfScalarVarbinary(client, sql, new String[]{"ABCD", "ABEF"});
 
         //
         // not inline varbinary
@@ -1261,12 +1172,11 @@ public class TestIndexesSuite extends RegressionSuite {
         client.callProcedure("BTEST_R2.insert", 18, -123, 3, 109, 91);
         client.callProcedure("BTEST_R2.insert", 19, -123, 3, 109, 35);
         // This is handy for debugging.
-        /*
-        results = client.callProcedure("@AdHoc", "select * from BTEST_R2;").getResults()[0];
-        System.out.println("BTEST_R2: " + results.toString());
-        results = client.callProcedure("@AdHoc", "select * from V_BTEST_R2_ABS;").getResults()[0];
-        System.out.println("V_BTEST_R2_ABS: " + results.toString());
-        //*/
+
+        //* enable to debug */ results = client.callProcedure("@AdHoc", "select * from BTEST_R2;").getResults()[0];
+        //* enable to debug */ System.out.println("BTEST_R2: " + results.toString());
+        //* enable to debug */ results = client.callProcedure("@AdHoc", "select * from V_BTEST_R2_ABS;").getResults()[0];
+        //* enable to debug */ System.out.println("V_BTEST_R2_ABS: " + results.toString());
         String sql0 = "SELECT * FROM V_BTEST_R2_ABS WHERE V_SUM_RENT < 1000;";
         String sql1 = "SELECT * FROM V_BTEST_R2_ABS WHERE V_SUM_RENT < 42;";
         String sql2 = "SELECT * FROM V_BTEST_R2_ABS WHERE V_SUM_RENT < 42 AND V_SUM_RENT < 26661;";
@@ -1279,6 +1189,7 @@ public class TestIndexesSuite extends RegressionSuite {
         results = client.callProcedure("@AdHoc", sql2).getResults()[0];
         assertEquals(0, results.getRowCount());
     }
+
     //
     // JUnit / RegressionSuite boilerplate
     //
@@ -1287,14 +1198,13 @@ public class TestIndexesSuite extends RegressionSuite {
     }
 
     static public junit.framework.Test suite() {
-
-        VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder =
             new MultiConfigSuiteBuilder(TestIndexesSuite.class);
-
         VoltProjectBuilder project = new VoltProjectBuilder();
         project.addSchema(Insert.class.getResource("indexes-ddl.sql"));
-        project.addProcedures(PROCEDURES);
+        project.addProcedures(Insert.class,
+                CheckMultiMultiIntGTEFailure.class,
+                CompiledInLists.class);
         project.addStmtProcedure("Eng397LimitIndexR1", "select * from R1 where R1.ID > 2 Limit ?");
         project.addStmtProcedure("Eng397LimitIndexP1", "select * from P1 where P1.ID > 2 Limit ?");
         project.addStmtProcedure("Eng397LimitIndexR2", "select * from R2 where R2.ID > 2 Limit ?");
@@ -1303,64 +1213,52 @@ public class TestIndexesSuite extends RegressionSuite {
         project.addStmtProcedure("Eng506UpdateRange",
                                  "UPDATE R1IX SET NUM = ? WHERE (R1IX.ID>R1IX.NUM) AND (R1IX.NUM>?)");
         project.addStmtProcedure("InsertR1IX", "insert into R1IX values (?, ?, ?, ?);");
-
         project.addStmtProcedure("InlinedInListP3with5DESCs",
                                  "select * from P3 T where T.DESC IN (?, ?, ?, ?, ?)" +
                                  " and T.NUM IN (100, 200, 300, 400, 500)");
-
         project.addStmtProcedure("InlinedInListR3with5DESCs",
                                  "select * from R3 T where T.DESC IN (?, ?, ?, ?, ?)" +
                                  " and T.NUM IN (100, 200, 300, 400, 500)");
-
         project.addStmtProcedure("InlinedInListP3withDESCs",
                                  "select * from P3 T where T.DESC IN ?" +
                                  " and T.NUM IN (100, 200, 300, 400, 500)");
-
-
         project.addStmtProcedure("InlinedInListP3with5NUMs",
                                  "select * from P3 T where T.DESC IN ('a', 'b', 'c', 'g', " +
                                  "'this here is a longish string to force a permanent object allocation'" +
                                  ")" +
                                  " and T.NUM IN (?, ?, ?, ?, ?)");
-
         project.addStmtProcedure("InlinedInListR3with5NUMs",
                                  "select * from R3 T where T.DESC IN ('a', 'b', 'c', 'g', " +
                                  "'this here is a longish string to force a permanent object allocation'" +
                                  ")" +
                                  " and T.NUM IN (?, ?, ?, ?, ?)");
-
         project.addStmtProcedure("InlinedInListP3withNUMs",
                                  "select * from P3 T where T.DESC IN ('a', 'b', 'c', 'g', " +
                                  "'this here is a longish string to force a permanent object allocation'" +
                                  ")" +
                                  " and T.NUM IN ?");
-
         //project.addStmtProcedure("InlinedUpdateInListP3with5NUMs",
         //        "update P3 set NUM = 0 where DESC IN ('a', 'b', 'c', 'g', " +
         //        "'this here is a longish string to force a permanent object allocation'" +
         //        ")" +
         //        " and NUM IN (111,222,333,444,555)");
 
-        boolean success;
-
+        LocalCluster config;
         //* CONFIG #1: HSQL -- keep this enabled by default with //
         config = new LocalCluster("testindexes-hsql.jar", 1, 1, 0, BackendTarget.HSQLDB_BACKEND);
-        success = config.compile(project);
-        assertTrue(success);
+        assertTrue(config.compile(project));
         builder.addServerConfig(config);
         // end of easy-to-disable code section */
 
         //* CONFIG #2: JNI -- keep this enabled by default with //
         config = new LocalCluster("testindexes-threesite.jar", 3, 1, 0, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assertTrue(success);
+        assertTrue(config.compile(project));
         builder.addServerConfig(config);
         // end of easy-to-disable code section */
 
         /*/ CONFIG #3: IPC -- keep this normally disabled with / * vs. //
         config = new LocalCluster("testindexes-threesite.jar", 1, 1, 0, BackendTarget.NATIVE_EE_IPC);
-        success = config.compile(project);
-        assertTrue(success);
+        assertTrue(success = config.compile(project);
         builder.addServerConfig(config);
         // end of normally disabled section */
 

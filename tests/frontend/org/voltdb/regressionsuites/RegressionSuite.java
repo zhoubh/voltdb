@@ -401,10 +401,31 @@ public class RegressionSuite extends TestCase {
         return isLocalCluster() ? ((LocalCluster)m_config).internalPort(hostId) : org.voltcore.common.Constants.DEFAULT_INTERNAL_PORT+hostId;
     }
 
+    static protected void validateTableRowCount(Client client, String sql,
+            long rowCountExpected)
+            throws NoConnectionsException, IOException, ProcCallException {
+        VoltTable vt = client.callProcedure("@AdHoc", sql).getResults()[0];
+        assertEquals("Wrong number of result rows from query \"" + sql +
+                "\": expected: " + rowCountExpected +
+                " actual: " + vt.getRowCount(),
+                rowCountExpected, vt.getRowCount());
+    }
+
+    static protected void validateTableAsScalarLong(Client client, String sql,
+            long expected)
+            throws NoConnectionsException, IOException, ProcCallException {
+        validateTableOfLongs(client, sql, new long[][]{{expected}});
+    }
+
     static protected void validateDMLTupleCount(Client c, String sql, long modifiedTupleCount)
             throws NoConnectionsException, IOException, ProcCallException {
         VoltTable vt = c.callProcedure("@AdHoc", sql).getResults()[0];
-        validateTableOfLongs(sql, vt, new long[][] {{modifiedTupleCount}});
+        validateDMLTupleCount(vt, sql, modifiedTupleCount);
+    }
+
+    static protected void validateDMLTupleCount(VoltTable vt,
+            String messagePrefix, long modifiedTupleCount) {
+        validateTableOfLongs(messagePrefix, vt, new long[][] {{modifiedTupleCount}});
     }
 
     static protected void validateTableOfLongs(Client c, String sql, long[][] expected)

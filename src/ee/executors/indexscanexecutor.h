@@ -46,40 +46,29 @@
 #ifndef HSTOREINDEXSCANEXECUTOR_H
 #define HSTOREINDEXSCANEXECUTOR_H
 
-#include "common/tabletuple.h"
 #include "executors/abstractexecutor.h"
+
 #include "executors/OptimizedProjector.hpp"
+
+#include "common/tabletuple.h"
 #include "indexes/tableindex.h"
 
 #include "boost/shared_array.hpp"
 
 namespace voltdb {
-
-class TempTable;
-class PersistentTable;
-
 class AbstractExpression;
-
-//
-// Inline PlanNodes
-//
-class IndexScanPlanNode;
+struct CountingPostfilter;
 class ProjectionPlanNode;
-class LimitPlanNode;
-
 class AggregateExecutorBase;
 
-struct CountingPostfilter;
-
-class IndexScanExecutor : public AbstractExecutor
-{
+class IndexScanExecutor : public AbstractExecutor {
 public:
     IndexScanExecutor(VoltDBEngine* engine, AbstractPlanNode* abstractNode)
         : AbstractExecutor(engine, abstractNode)
-        , m_projector()
         , m_searchKeyBackingStore(NULL)
+        , m_projector()
         , m_aggExec(NULL)
-    {}
+    { }
     ~IndexScanExecutor();
 
     /** This is a helper function to get the "next tuple" during an
@@ -108,41 +97,32 @@ public:
     }
 
 private:
-    bool p_init(AbstractPlanNode*,
-                TempTableLimits* limits);
+    bool p_init(AbstractPlanNode*, TempTableLimits*);
     bool p_execute(const NValueArray &params);
-    void outputTuple(CountingPostfilter& postfilter, TableTuple& tuple);
 
+    void outputTuple(CountingPostfilter& postfilter, TableTuple& tuple);
 
     // Data in this class is arranged roughly in the order it is read for
     // p_execute(). Please don't reshuffle it only in the name of beauty.
 
-    IndexScanPlanNode *m_node;
-    int m_numOfSearchkeys;
+    // Search key
+    int m_numOfSearchKeys;
+    IndexLookupType m_lookupType;
+    boost::shared_array<AbstractExpression*> m_searchKeys;
+    char* m_searchKeyBackingStore;
 
-    // Inline Projection
+    SortDirectionType m_sortDirection;
+
+    boost::shared_array<int> m_projectionAllTupleArrayPtr;
+
+    // Inline projection
     ProjectionPlanNode* m_projectionNode;
     OptimizedProjector m_projector;
 
-    // Search key
-    AbstractExpression** m_searchKeyArray;
-
-    IndexLookupType m_lookupType;
-    SortDirectionType m_sortDirection;
-
-    // IndexScan Information
-    TempTable* m_outputTable;
-
-    // arrange the memory mgmt aids at the bottom to try to maximize
-    // cache hits (by keeping them out of the way of useful runtime data)
-    boost::shared_array<int> m_projectionAllTupleArrayPtr;
-    boost::shared_array<AbstractExpression*> m_searchKeyArrayPtr;
-    // So Valgrind doesn't complain:
-    char* m_searchKeyBackingStore;
-
+    // Inline aggregation
     AggregateExecutorBase* m_aggExec;
 };
 
-}
+} // namespace voltdb
 
-#endif
+#endif // HSTOREINDEXSCANEXECUTOR_H
