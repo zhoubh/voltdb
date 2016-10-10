@@ -160,7 +160,7 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
     }
 
     @Override
-    public Object clone() {
+    public AbstractExpression clone() {
         AbstractExpression clone = null;
         try {
             clone = (AbstractExpression)super.clone();
@@ -175,18 +175,18 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
         clone.m_inBytes = m_inBytes;
         if (m_left != null)
         {
-            AbstractExpression left_clone = (AbstractExpression)m_left.clone();
+            AbstractExpression left_clone = m_left.clone();
             clone.m_left = left_clone;
         }
         if (m_right != null)
         {
-            AbstractExpression right_clone = (AbstractExpression)m_right.clone();
+            AbstractExpression right_clone = m_right.clone();
             clone.m_right = right_clone;
         }
         if (m_args != null) {
             clone.m_args = new ArrayList<>();
             for (AbstractExpression argument : m_args) {
-                clone.m_args.add((AbstractExpression) argument.clone());
+                clone.m_args.add(argument.clone());
             }
         }
 
@@ -844,7 +844,7 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
         }
 
         if (m_left != lnode || m_right != rnode || changed) {
-            AbstractExpression resExpr = (AbstractExpression) this.clone();
+            AbstractExpression resExpr = clone();
             resExpr.setLeft(lnode);
             resExpr.setRight(rnode);
             resExpr.setArgs(newArgs);
@@ -883,9 +883,9 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
         if (getExpressionType() == ExpressionType.AGGREGATE_AVG) {
             AbstractExpression child = getLeft();
             AbstractExpression left = new AggregateExpression(ExpressionType.AGGREGATE_SUM);
-            left.setLeft((AbstractExpression) child.clone());
+            left.setLeft(child.clone());
             AbstractExpression right = new AggregateExpression(ExpressionType.AGGREGATE_COUNT);
-            right.setLeft((AbstractExpression) child.clone());
+            right.setLeft(child.clone());
 
             return new OperatorExpression(ExpressionType.OPERATOR_DIVIDE, left, right);
         }
@@ -910,7 +910,7 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
             }
         }
         if (m_left != lnode || m_right != rnode || changed) {
-            AbstractExpression resExpr = (AbstractExpression) this.clone();
+            AbstractExpression resExpr = clone();
             resExpr.setLeft(lnode);
             resExpr.setRight(rnode);
             resExpr.setArgs(newArgs);

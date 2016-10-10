@@ -70,7 +70,7 @@ public:
     const std::string& getTargetIndexName() const { return m_target_index_name; }
 
     const std::vector<AbstractExpression*>& getSearchKeyExpressions() const
-    { return m_searchkey_expressions; }
+    { return m_search_key_expressions; }
 
     AbstractExpression* getEndExpression() const { return m_end_expression.get(); }
 
@@ -78,14 +78,14 @@ public:
 
     AbstractExpression* getSkipNullPredicate() const { return m_skip_null_predicate.get(); }
 
-protected:
+private:
     void loadFromJSONObject(PlannerDomValue obj);
 
     // This is the id of the index to reference during execution
     std::string m_target_index_name;
 
     // TODO: Document
-    OwningExpressionVector m_searchkey_expressions;
+    OwningExpressionVector m_search_key_expressions;
 
     // TODO: Document
     boost::scoped_ptr<AbstractExpression> m_end_expression;

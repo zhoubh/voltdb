@@ -212,7 +212,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params) {
         }
         catch (const SQLException &e) {
             // This next bit of logic handles underflow, overflow and search key length
-            // exceeding variable length column size (variable lenght mismatch) when
+            // exceeding variable length column size (variable length mismatch) when
             // setting up the search keys.
             // e.g. TINYINT > 200 or INT <= 6000000000
             // VarChar(3 bytes) < "abcd" or VarChar(3) > "abbd"
@@ -264,17 +264,17 @@ bool IndexScanExecutor::p_execute(const NValueArray &params) {
                     // search will be performed on shrinked key,
                     // so update the lookup operation to account for it
                     switch (localLookupType) {
-                        case INDEX_LOOKUP_TYPE_LT:
-                        case INDEX_LOOKUP_TYPE_LTE:
-                            localLookupType = INDEX_LOOKUP_TYPE_LTE;
-                            break;
-                        case INDEX_LOOKUP_TYPE_GT:
-                        case INDEX_LOOKUP_TYPE_GTE:
-                            localLookupType = INDEX_LOOKUP_TYPE_GT;
-                            break;
-                        default:
-                            assert(!"IndexScanExecutor::p_execute - can't index on not equals");
-                            return false;
+                    case INDEX_LOOKUP_TYPE_LT:
+                    case INDEX_LOOKUP_TYPE_LTE:
+                        localLookupType = INDEX_LOOKUP_TYPE_LTE;
+                        break;
+                    case INDEX_LOOKUP_TYPE_GT:
+                    case INDEX_LOOKUP_TYPE_GTE:
+                        localLookupType = INDEX_LOOKUP_TYPE_GT;
+                        break;
+                    default:
+                        assert(!"IndexScanExecutor::p_execute - can't index on not equals");
+                        return false;
                     }
                 }
 
@@ -399,9 +399,6 @@ bool IndexScanExecutor::p_execute(const NValueArray &params) {
         tableIndex->moveToEnd(toStartActually, indexCursor);
     }
 
-    //
-    // We have to different nextValue() methods for different lookup types
-    //
     while (postfilter.isUnderLimit() &&
            getNextTuple(localLookupType,
                         &tuple,
@@ -411,11 +408,13 @@ bool IndexScanExecutor::p_execute(const NValueArray &params) {
         if (tuple.isPendingDelete()) {
             continue;
         }
-        VOLT_TRACE("LOOPING in indexscan: tuple: '%s'\n", tuple.debug("tablename").c_str());
+        VOLT_TRACE("LOOPING in indexscan: tuple: '%s'\n",
+                tuple.debug("tablename").c_str());
 
         pmp.countdownProgress();
         //
-        // First check to eliminate the null index rows for UNDERFLOW case only
+        // First check to eliminate the null-valued index rows
+        // for the UNDERFLOW case only
         //
         if (skipNullExpr != NULL) {
             if (skipNullExpr->eval(&tuple, NULL).isTrue()) {
@@ -436,7 +435,6 @@ bool IndexScanExecutor::p_execute(const NValueArray &params) {
         // Then apply our post-predicate and LIMIT/OFFSET to do further filtering
         //
         if (postfilter.eval(&tuple, NULL)) {
-
             if (m_projector.numSteps() > 0) {
                 m_projector.exec(tempTuple, tuple);
                 outputTuple(postfilter, tempTuple);

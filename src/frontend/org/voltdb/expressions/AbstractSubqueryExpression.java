@@ -108,7 +108,7 @@ public abstract class AbstractSubqueryExpression extends AbstractExpression {
     }
 
     @Override
-    public Object clone() {
+    public AbstractSubqueryExpression clone() {
         AbstractSubqueryExpression clone = (AbstractSubqueryExpression) super.clone();
         clone.m_subqueryId = m_subqueryId;
         clone.m_subqueryNodeId = m_subqueryNodeId;

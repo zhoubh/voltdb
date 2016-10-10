@@ -55,8 +55,7 @@ IndexScanPlanNode::~IndexScanPlanNode() { }
 
 PlanNodeType IndexScanPlanNode::getPlanNodeType() const { return PLAN_NODE_TYPE_INDEXSCAN; }
 
-std::string IndexScanPlanNode::debugInfo(const std::string &spacer) const
-{
+std::string IndexScanPlanNode::debugInfo(const std::string &spacer) const {
     std::ostringstream buffer;
     buffer << AbstractScanPlanNode::debugInfo(spacer)
            << spacer << "TargetIndexName[" << m_target_index_name << "]\n"
@@ -64,9 +63,9 @@ std::string IndexScanPlanNode::debugInfo(const std::string &spacer) const
            << indexLookupToString(m_lookup_type) << "]\n"
            << spacer << "SortDirection["
            << sortDirectionToString(m_sort_direction) << "]\n"
-           << spacer << "SearchKey Expressions:\n";
-    BOOST_FOREACH(auto searchkey, m_searchkey_expressions) {
-        buffer << searchkey->debug(spacer);
+           << spacer << "Search Key Expressions:\n";
+    BOOST_FOREACH(auto search_key, m_search_key_expressions) {
+        buffer << search_key->debug(spacer);
     }
 
     buffer << spacer << "End Expression: ";
@@ -95,8 +94,7 @@ std::string IndexScanPlanNode::debugInfo(const std::string &spacer) const
     return buffer.str();
 }
 
-void IndexScanPlanNode::loadFromJSONObject(PlannerDomValue obj)
-{
+void IndexScanPlanNode::loadFromJSONObject(PlannerDomValue obj) {
     AbstractScanPlanNode::loadFromJSONObject(obj);
 
     std::string lookupTypeString = obj.valueForKey("LOOKUP_TYPE").asStr();
@@ -110,10 +108,10 @@ void IndexScanPlanNode::loadFromJSONObject(PlannerDomValue obj)
     m_initial_expression.reset(loadExpressionFromJSONObject("INITIAL_EXPRESSION", obj));
     m_skip_null_predicate.reset(loadExpressionFromJSONObject("SKIP_NULL_PREDICATE", obj));
 
-    m_searchkey_expressions.loadExpressionArrayFromJSONObject("SEARCHKEY_EXPRESSIONS", obj);
+    m_search_key_expressions.loadExpressionArrayFromJSONObject("SEARCHKEY_EXPRESSIONS", obj);
 #ifndef NDEBUG
-    BOOST_FOREACH(auto searchKey, m_searchkey_expressions) {
-        assert(searchKey);
+    BOOST_FOREACH(auto search_key, m_search_key_expressions) {
+        assert(search_key);
     }
 #endif
 

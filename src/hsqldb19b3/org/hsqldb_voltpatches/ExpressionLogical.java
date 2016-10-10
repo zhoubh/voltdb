@@ -988,15 +988,14 @@ public class ExpressionLogical extends Expression {
      * prior to calling this method
      */
     private Boolean compareValues(Session session, Object left, Object right) {
-        if (left == null) {
+        if (left == null || right == null) {
+            // IS NOT DISTINCT FROM never results in null.
+            // It returns TRUE for 2 nulls and FALSE for just 1.
             if (opType == OpTypes.NOT_DISTINCT) {
-                return right == null;
+                return left == right;
             }
+            // All other comparators are NULL-IN-NULL-OUT.
             return null;
-        }
-
-        if (right == null) {
-            return (opType == OpTypes.NOT_DISTINCT) ? Boolean.FALSE : null;
         }
 
         int result = nodes[LEFT].dataType.compare(left, right);

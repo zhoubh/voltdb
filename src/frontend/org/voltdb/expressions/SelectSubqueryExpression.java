@@ -139,7 +139,7 @@ public class SelectSubqueryExpression extends AbstractSubqueryExpression {
     }
 
     @Override
-    public  int overrideSubqueryNodeIds(int newId) {
+    public int overrideSubqueryNodeIds(int newId) {
         assert(m_subquery != null);
         CompiledPlan subqueryPlan = m_subquery.getBestCostPlan();
         newId = subqueryPlan.resetPlanNodeIds(newId);
@@ -148,7 +148,7 @@ public class SelectSubqueryExpression extends AbstractSubqueryExpression {
     }
 
     @Override
-    public Object clone() {
+    public SelectSubqueryExpression clone() {
         SelectSubqueryExpression clone = (SelectSubqueryExpression) super.clone();
         if (!m_allParameterIdxList.isEmpty()) {
             clone.m_allParameterIdxList = new ArrayList<Integer>();
