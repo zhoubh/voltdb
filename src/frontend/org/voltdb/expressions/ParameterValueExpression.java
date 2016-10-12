@@ -62,7 +62,7 @@ public class ParameterValueExpression extends AbstractValueExpression {
     }
 
     @Override
-    public Object clone() {
+    public ParameterValueExpression clone() {
         ParameterValueExpression clone = (ParameterValueExpression)super.clone();
         clone.m_paramIndex = m_paramIndex;
         clone.m_paramIsVector = m_paramIsVector;

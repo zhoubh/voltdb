@@ -46,31 +46,22 @@
 #ifndef HSTORENESTLOOPINDEXEXECUTOR_H
 #define HSTORENESTLOOPINDEXEXECUTOR_H
 
-#include "common/common.h"
-#include "common/valuevector.h"
-#include "common/tabletuple.h"
-#include "expressions/abstractexpression.h"
 #include "executors/abstractjoinexecutor.h"
 
-
 namespace voltdb {
-
-class NestLoopIndexPlanNode;
+class AbstractExpression;
 class IndexScanPlanNode;
-class AggregateExecutorBase;
-class ProgressMonitorProxy;
-class TableTuple;
 
 /**
  * Nested loop for IndexScan.
- * This is the implementation of usual nestloop which receives
- * one input table (<i>outer</i> table) and repeatedly does indexscan
- * on another table (<i>inner</i> table) with inner table's index.
+ * This is the implementation of the index-optimized nestloop which scans the
+ * tules from one input table (<i>outer</i> table) and repeatedly does an
+ * indexscan on the index of another table (<i>inner</i> table) using key
+ * values from the outer table's tuple.
  * This executor is faster than HashMatchJoin and MergeJoin if only one
- * of underlying tables has low selectivity.
+ * of the underlying tables has low selectivity.
  */
-class NestLoopIndexExecutor : public AbstractJoinExecutor
-{
+class NestLoopIndexExecutor : public AbstractJoinExecutor {
 public:
     NestLoopIndexExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node)
         : AbstractJoinExecutor(engine, abstract_node)
@@ -80,17 +71,15 @@ public:
 
     ~NestLoopIndexExecutor();
 
-protected:
-
-    bool p_init(AbstractPlanNode*,
-                TempTableLimits* limits);
+private:
+    bool p_init(AbstractPlanNode*, TempTableLimits* limits);
     bool p_execute(const NValueArray &params);
 
     IndexScanPlanNode* m_indexNode;
     IndexLookupType m_lookupType;
     std::vector<AbstractExpression*> m_outputExpressions;
     SortDirectionType m_sortDirection;
-    StandAloneTupleStorage m_indexValues;
+    StandAloneTupleStorage m_indexKeyValues;
 };
 
 }

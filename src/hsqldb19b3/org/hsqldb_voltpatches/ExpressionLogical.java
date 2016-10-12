@@ -989,9 +989,12 @@ public class ExpressionLogical extends Expression {
      */
     private Boolean compareValues(Session session, Object left, Object right) {
         if (left == null || right == null) {
+            // IS NOT DISTINCT FROM never results in null.
+            // It returns TRUE for 2 nulls and FALSE for just 1.
             if (opType == OpTypes.NOT_DISTINCT) {
                 return left == right;
             }
+            // All other comparators are NULL-IN-NULL-OUT.
             return null;
         }
 

@@ -120,7 +120,7 @@ public class TupleValueExpression extends AbstractValueExpression {
     }
 
     @Override
-    public Object clone() {
+    public TupleValueExpression clone() {
         TupleValueExpression clone = (TupleValueExpression)super.clone();
         clone.m_columnIndex = m_columnIndex;
         clone.m_tableName = m_tableName;

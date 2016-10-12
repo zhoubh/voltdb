@@ -46,7 +46,7 @@ public class ConstantValueExpression extends AbstractValueExpression {
     }
 
     @Override
-    public Object clone() {
+    public ConstantValueExpression clone() {
         ConstantValueExpression clone = (ConstantValueExpression)super.clone();
         clone.m_value = m_value;
         clone.m_isNull = m_isNull;

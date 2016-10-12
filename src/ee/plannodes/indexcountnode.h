@@ -29,47 +29,47 @@ namespace voltdb {
 class IndexCountPlanNode : public AbstractScanPlanNode {
 public:
     IndexCountPlanNode()
-        : m_lookup_type(INDEX_LOOKUP_TYPE_EQ)
-        , m_end_type(INDEX_LOOKUP_TYPE_EQ)
+        : m_lookupType(INDEX_LOOKUP_TYPE_EQ)
+        , m_endType(INDEX_LOOKUP_TYPE_EQ)
     { }
     ~IndexCountPlanNode();
     PlanNodeType getPlanNodeType() const;
     std::string debugInfo(const std::string &spacer) const;
 
-    IndexLookupType getLookupType() const { return m_lookup_type; }
+    IndexLookupType getLookupType() const { return m_lookupType; }
 
-    IndexLookupType getEndType() const { return m_end_type; }
+    IndexLookupType getEndType() const { return m_endType; }
 
-    const std::string& getTargetIndexName() const { return m_target_index_name; }
+    const std::string& getTargetIndexName() const { return m_targetIndexName; }
 
     const std::vector<AbstractExpression*>& getEndKeyExpressions() const
-    { return m_endkey_expressions; }
+    { return m_endKeyExpressions; }
 
     const std::vector<AbstractExpression*>& getSearchKeyExpressions() const
-    { return m_searchkey_expressions; }
+    { return m_searchKeyExpressions; }
 
-    AbstractExpression* getSkipNullPredicate() const { return m_skip_null_predicate.get(); }
+    AbstractExpression* getSkipNullPredicate() const { return m_skipNullPredicate.get(); }
 
 protected:
     void loadFromJSONObject(PlannerDomValue obj);
 
     // This is the id of the index to reference during execution
-    std::string m_target_index_name;
+    std::string m_targetIndexName;
 
     // TODO: Document
-    OwningExpressionVector m_searchkey_expressions;
+    OwningExpressionVector m_searchKeyExpressions;
 
     // TODO: Document
-    OwningExpressionVector m_endkey_expressions;
+    OwningExpressionVector m_endKeyExpressions;
 
     // Index Lookup Type
-    IndexLookupType m_lookup_type;
+    IndexLookupType m_lookupType;
 
     // Index Lookup End Type
-    IndexLookupType m_end_type;
+    IndexLookupType m_endType;
 
     // count null row predicate for edge cases: reverse scan or underflow case
-    boost::scoped_ptr<AbstractExpression> m_skip_null_predicate;
+    boost::scoped_ptr<AbstractExpression> m_skipNullPredicate;
 };
 
 } // namespace voltdb

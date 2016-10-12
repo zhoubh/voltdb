@@ -46,44 +46,37 @@
 #ifndef HSTOREABSTRACTJOINEXECUTOR_H
 #define HSTOREABSTRACTJOINEXECUTOR_H
 
-#include "common/common.h"
-#include "common/tabletuple.h"
 #include "executors/abstractexecutor.h"
+#include "executors/executorutil.h"
 
 namespace voltdb {
-
-class AbstractPlanNode;
 class AggregateExecutorBase;
 struct CountingPostfilter;
 class ProgressMonitorProxy;
-class Table;
-class TempTableLimits;
-class VoltDBEngine;
 
 /**
  *  Abstract base class for all join executors
  */
 class AbstractJoinExecutor : public AbstractExecutor {
-    protected:
-        // Constructor
-        AbstractJoinExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node) :
-            AbstractExecutor(engine, abstract_node) { }
+protected:
+    AbstractJoinExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node) :
+        AbstractExecutor(engine, abstract_node) { }
 
-        bool p_init(AbstractPlanNode*, TempTableLimits* limits);
+    bool p_init(AbstractPlanNode*, TempTableLimits* limits);
 
-        void p_init_null_tuples(Table* outer_table, Table* inner_table);
+    void initNullTuples(Table* outer_table, Table* inner_table);
 
-        // Write tuple to the output table
-        void outputTuple(CountingPostfilter& postfilter, TableTuple& join_tuple, ProgressMonitorProxy& pmp);
+    // Write tuple to the output table
+    void outputTuple(CountingPostfilter& postfilter, TableTuple& join_tuple, ProgressMonitorProxy& pmp);
 
-        JoinType m_joinType;
+    JoinType m_joinType;
 
-        StandAloneTupleStorage m_null_outer_tuple;
-        StandAloneTupleStorage m_null_inner_tuple;
+    StandAloneTupleStorage m_nullOuterTuple;
+    StandAloneTupleStorage m_nullInnerTuple;
 
-        AggregateExecutorBase* m_aggExec;
+    AggregateExecutorBase* m_aggExec;
 };
 
-}
+} // namespace voltdb
 
 #endif

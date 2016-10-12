@@ -72,23 +72,11 @@ public class TestQueryTimeout extends RegressionSuite {
         System.out.println("Finish loading " + scale + " rows for table " + tb);
     }
 
-    private void truncateData(Client client, String tb)
-            throws NoConnectionsException, IOException, ProcCallException {
-        client.callProcedure("@AdHoc", "Truncate table " + tb);
-        validateTableOfScalarLongs(client, "Select count(*) from " + tb, new long[]{0});
-    }
-
     private void loadTables(Client client, int scaleP, int scaleR)
             throws IOException, ProcCallException, InterruptedException {
         loadData(client, "P1", scaleP);
         loadData(client, "R1", scaleR);
         client.drain();
-    }
-
-    private void truncateTables(Client client)
-            throws IOException, ProcCallException, InterruptedException {
-        truncateData(client, "P1");
-        truncateData(client, "R1");
     }
 
     public void testReplicatedProcTimeout() throws IOException, ProcCallException, InterruptedException {
@@ -343,7 +331,7 @@ public class TestQueryTimeout extends RegressionSuite {
         for (boolean sync : syncs) {
             System.out.println("Testing " + (sync ? "synchronously": "asynchronously") + "  call");
             // truncate the data
-            truncateTables(client);
+            truncateTables(client, "P1", "R1");
             // load more data
             loadTables(client, 10000, 3000);
 
@@ -375,7 +363,7 @@ public class TestQueryTimeout extends RegressionSuite {
 
 
             // truncate the data
-            truncateTables(client);
+            truncateTables(client, "P1", "R1");
             loadTables(client, 1000, 300);
 
             checkTimeoutDecreaseProcFailed(sync, client, "SPPartitionReadOnlyProc", 1);
@@ -392,7 +380,7 @@ public class TestQueryTimeout extends RegressionSuite {
             checkNoTimingOutWriteProcedure(sync, client, "PartitionWriteReadProc");
 
             // truncate the data
-            truncateTables(client);
+            truncateTables(client, "P1", "R1");
         }
 
     }

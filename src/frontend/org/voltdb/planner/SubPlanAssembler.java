@@ -1476,11 +1476,12 @@ public abstract class SubPlanAssembler {
     }
 
     /**
-     * Get a sequential scan access plan for a table. For multi-site plans/tables,
-     * scans at all partitions.
+     * Get a sequential scan access plan for a table.
+     * For multi-site plans/tables, scans at all partitions.
      *
      * @param table The table to scan.
-     * @param path The access path to access the data in the table (index/scan/etc).
+     * @param path The access path to access the data in the table
+     *             (index/scan/etc).
      * @return A scan plan node
      */
     private static AbstractScanPlanNode
@@ -1497,12 +1498,13 @@ public abstract class SubPlanAssembler {
      * Get an index scan access plan for a table.
      *
      * @param tableAliasIndex The table to get data from.
-     * @param path The access path to access the data in the table (index/scan/etc).
-     * @return An index scan plan node OR,
-               in one edge case, an NLIJ of a MaterializedScan and an index scan plan node.
+     * @param path The access path to access the data in the table
+     *             (index/scan/etc).
+     * @return An index scan plan node OR, in one edge case,
+     *         an NLIJ of a MaterializedScan and an index scan plan node.
      */
-    private static AbstractPlanNode getIndexAccessPlanForTable(StmtTableScan tableScan, AccessPath path)
-    {
+    private static AbstractPlanNode getIndexAccessPlanForTable(
+            StmtTableScan tableScan, AccessPath path) {
         // now assume this will be an index scan and get the relevant index
         Index index = path.index;
         IndexScanPlanNode scanNode = new IndexScanPlanNode(tableScan, index);
@@ -1518,26 +1520,32 @@ public abstract class SubPlanAssembler {
                 scanNode.addSearchKeyExpression(expr);
                 continue;
             }
+            ExpressionType comparator = expr.getExpressionType();
             AbstractExpression expr2 = expr.getRight();
             assert(expr2 != null);
-            if (expr.getExpressionType() == ExpressionType.COMPARE_IN) {
+            if (comparator == ExpressionType.COMPARE_IN) {
                 // Replace this method's result with an injected NLIJ.
                 resultNode = injectIndexedJoinWithMaterializedScan(expr2, scanNode);
-                // Extract a TVE from the LHS MaterializedScan for use by the IndexScan in its new role.
-                MaterializedScanPlanNode matscan = (MaterializedScanPlanNode)resultNode.getChild(0);
+                // Extract a TVE from the LHS MaterializedScan for use by the
+                // IndexScan in its new role.
+                MaterializedScanPlanNode matscan =
+                        (MaterializedScanPlanNode)resultNode.getChild(0);
                 AbstractExpression elemExpr = matscan.getOutputExpression();
                 assert(elemExpr != null);
-                // Replace the IN LIST condition in the end expression referencing all the list elements
-                // with a more efficient equality filter referencing the TVE for each element in turn.
+                // Replace the IN LIST condition in the end expression
+                // referencing all the list elements with a more efficient
+                // equality filter referencing the TVE for each element in turn.
                 replaceInListFilterWithEqualityFilter(path.endExprs, expr2, elemExpr);
-                // Set up the similar VectorValue --> TVE replacement of the search key expression.
+                // Set up the similar VectorValue -->
+                // TVE replacement of the search key expression.
                 expr2 = elemExpr;
             }
             if (expr2 instanceof AbstractSubqueryExpression) {
                 // The AbstractSubqueryExpression must be wrapped up into a
-                // ScalarValueExpression which extracts the actual row/column from
-                // the subquery
-                // ENG-8175: this part of code seems not working for float/varchar type index ?!
+                // ScalarValueExpression which extracts the actual row/column
+                // from the subquery
+                // ENG-8175: this part of the code seems not to work for
+                // float/varchar type indexes ?!
 
                 // DEAD CODE with the guards on index: ENG-8203
                 assert(false);
@@ -1549,8 +1557,9 @@ public abstract class SubPlanAssembler {
         scanNode.setBindings(path.bindings);
         scanNode.setEndExpression(ExpressionUtil.combinePredicates(path.endExprs));
         scanNode.setPredicate(path.otherExprs);
-        // The initial expression is needed to control a (short?) forward scan to adjust the start of a reverse
-        // iteration after it had to initially settle for starting at "greater than a prefix key".
+        // The initial expression is needed to control a (short?) forward scan
+        // to adjust the start of a reverse iteration after it had to initially
+        // settle for starting at "greater than a prefix key".
         scanNode.setInitialExpression(ExpressionUtil.combinePredicates(path.initialExpr));
         scanNode.setSkipNullPredicate();
         scanNode.setEliminatedPostFilters(path.eliminatedPostExprs);
@@ -1559,11 +1568,11 @@ public abstract class SubPlanAssembler {
 
 
     // Generate a plan for an IN-LIST-driven index scan
-    private static AbstractPlanNode injectIndexedJoinWithMaterializedScan(AbstractExpression listElements,
-                                                                   IndexScanPlanNode scanNode)
-    {
+    private static AbstractPlanNode injectIndexedJoinWithMaterializedScan(
+            AbstractExpression listElements, IndexScanPlanNode scanNode) {
         MaterializedScanPlanNode matScan = new MaterializedScanPlanNode();
-        assert(listElements instanceof VectorValueExpression || listElements instanceof ParameterValueExpression);
+        assert(listElements instanceof VectorValueExpression ||
+                listElements instanceof ParameterValueExpression);
         matScan.setRowData(listElements);
         matScan.setSortDirection(scanNode.getSortDirection());
 

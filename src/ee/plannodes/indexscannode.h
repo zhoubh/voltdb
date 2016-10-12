@@ -56,53 +56,53 @@ namespace voltdb {
 class IndexScanPlanNode : public AbstractScanPlanNode {
 public:
     IndexScanPlanNode()
-        : m_lookup_type(INDEX_LOOKUP_TYPE_EQ)
-        , m_sort_direction(SORT_DIRECTION_TYPE_INVALID)
+        : m_lookupType(INDEX_LOOKUP_TYPE_EQ)
+        , m_sortDirection(SORT_DIRECTION_TYPE_INVALID)
     { }
     ~IndexScanPlanNode();
     PlanNodeType getPlanNodeType() const;
     std::string debugInfo(const std::string &spacer) const;
 
-    IndexLookupType getLookupType() const { return m_lookup_type; }
+    IndexLookupType getLookupType() const { return m_lookupType; }
 
-    SortDirectionType getSortDirection() const { return m_sort_direction; }
+    SortDirectionType getSortDirection() const { return m_sortDirection; }
 
-    const std::string& getTargetIndexName() const { return m_target_index_name; }
+    const std::string& getTargetIndexName() const { return m_targetIndexName; }
 
     const std::vector<AbstractExpression*>& getSearchKeyExpressions() const
-    { return m_searchkey_expressions; }
+    { return m_searchKeyExpressions; }
 
-    AbstractExpression* getEndExpression() const { return m_end_expression.get(); }
+    AbstractExpression* getEndExpression() const { return m_endExpression.get(); }
 
-    AbstractExpression* getInitialExpression() const { return m_initial_expression.get(); }
+    AbstractExpression* getInitialExpression() const { return m_initialExpression.get(); }
 
-    AbstractExpression* getSkipNullPredicate() const { return m_skip_null_predicate.get(); }
+    AbstractExpression* getSkipNullPredicate() const { return m_skipNullPredicate.get(); }
 
-protected:
+private:
     void loadFromJSONObject(PlannerDomValue obj);
 
     // This is the id of the index to reference during execution
-    std::string m_target_index_name;
+    std::string m_targetIndexName;
 
     // TODO: Document
-    OwningExpressionVector m_searchkey_expressions;
+    OwningExpressionVector m_searchKeyExpressions;
 
     // TODO: Document
-    boost::scoped_ptr<AbstractExpression> m_end_expression;
+    boost::scoped_ptr<AbstractExpression> m_endExpression;
 
     // TODO: Document
-    boost::scoped_ptr<AbstractExpression> m_initial_expression;
+    boost::scoped_ptr<AbstractExpression> m_initialExpression;
 
     // Index Lookup Type
-    IndexLookupType m_lookup_type;
+    IndexLookupType m_lookupType;
 
     // Sorting Direction
-    SortDirectionType m_sort_direction;
+    SortDirectionType m_sortDirection;
 
     // null row predicate for underflow edge case
-    boost::scoped_ptr<AbstractExpression> m_skip_null_predicate;
+    boost::scoped_ptr<AbstractExpression> m_skipNullPredicate;
 };
 
-} // namespace voltdb
+}// namespace voltdb
 
 #endif

@@ -685,7 +685,7 @@ public class TestUnionSuite extends RegressionSuite {
         }
     }
 
-    public void testUnionVarchar() throws NoConnectionsException, IOException, ProcCallException {
+    public void testUnionVarchar() throws Exception {
         Client client = this.getClient();
 
         String state = "MA";
@@ -703,11 +703,11 @@ public class TestUnionSuite extends RegressionSuite {
         for (String col : columns) {
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" from my_votes union select 'MA' from area_code_state;",
-                  new String[] {"MA"});
+                  "MA");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" from my_votes union select 'VOLTDB_VOLTDB_VOLTDB_VOLTDB_VOLTDB' from area_code_state order by 1;",
-                  new String[] {"MA", "VOLTDB_VOLTDB_VOLTDB_VOLTDB_VOLTDB"});
+                  "MA", "VOLTDB_VOLTDB_VOLTDB_VOLTDB_VOLTDB");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" from my_votes except select 'MA' from area_code_state;",
@@ -715,31 +715,31 @@ public class TestUnionSuite extends RegressionSuite {
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" from my_votes union all select 'MA' from area_code_state;",
-                  new String[] {"MA","MA", "MA"});
+                  "MA", "MA", "MA");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" from my_votes union select state from area_code_state order by 1;",
-                  new String[] {"MA","RI"});
+                  "MA", "RI");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" || '_USA' from my_votes union select state from area_code_state order by 1;",
-                  new String[] {"MA_USA","RI"});
+                  "MA_USA", "RI");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" from my_votes union select state || '_USA' from area_code_state order by 1;",
-                  new String[] {"MA","RI_USA"});
+                  "MA", "RI_USA");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" || '_USA' from my_votes union select state || '_USA' from area_code_state order by 1;",
-                  new String[] {"MA_USA","RI_USA"});
+                  "MA_USA", "RI_USA");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" || '_USA' from my_votes union select state || '_USA' from area_code_state order by 1;",
-                  new String[] {"MA_USA","RI_USA"});
+                  "MA_USA", "RI_USA");
 
             validateTableColumnOfScalarVarchar(client,
                   "select "+ col +" || '_USA' from my_votes union select state100 || '_USA' from my_votes order by 1;",
-                  new String[] {"MA_USA"});
+                  "MA_USA");
         }
 
         // varbinary

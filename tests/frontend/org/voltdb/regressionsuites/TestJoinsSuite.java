@@ -677,9 +677,11 @@ public class TestJoinsSuite extends RegressionSuite {
         query = "SELECT * FROM R2 LEFT JOIN R3 " +
                 "ON R3.A " + joinOp + " R2.A AND R2.C < 0";
         validateRowCount(client, query, 4);
+
         query = "SELECT * FROM R3 RIGHT JOIN R2 " +
                 "ON R3.A " + joinOp + " R2.A AND R2.C < 0";
         validateRowCount(client, query, 4);
+
         // Same as above but with partitioned table
         query = "SELECT * FROM P2 LEFT JOIN R3 " +
                 "ON R3.A " + joinOp + " P2.A AND P2.E < 0";
@@ -691,6 +693,7 @@ public class TestJoinsSuite extends RegressionSuite {
         query = "SELECT * FROM R2 LEFT JOIN R3 " +
                 "ON R3.A " + joinOp + " R2.A AND R3.A > 1";
         validateRowCount(client, query, 4);
+
         query = "SELECT * FROM R3 RIGHT JOIN R2 " +
                 "ON R3.A " + joinOp + " R2.A AND R3.A > 1";
         validateRowCount(client, query, 4);
@@ -711,6 +714,7 @@ public class TestJoinsSuite extends RegressionSuite {
                 System.out.println("The HSQL error MAY have been solved. Consider simplifying this test.");
             }
         }
+
         query = "SELECT * FROM R3 RIGHT JOIN R2 " +
                 "ON R3.A " + joinOp + " R2.A WHERE R3.A IS NULL";
         if (isHSQL()) { //// PENDING HSQL flaw investigation
@@ -798,6 +802,7 @@ public class TestJoinsSuite extends RegressionSuite {
         client.callProcedure("P3.INSERT", 2, 2);
         client.callProcedure("P3.INSERT", 4, 4);
         client.callProcedure("P3.INSERT", 5, 5);
+
         // P3 1st joined with P2 not null and eliminated by P2.A IS NULL
         // P3 2nd joined with P2 not null and eliminated by P2.A IS NULL
         // P3 3rd joined with P2 null (P2.A < 3)
@@ -814,6 +819,7 @@ public class TestJoinsSuite extends RegressionSuite {
         else {
             validateRowCount(client, query, 2);
         }
+
         // Outer table index scan
         // P3 1st eliminated by P3.A > 0 where filter
         // P3 2nd joined with P2 2
@@ -1237,7 +1243,6 @@ public class TestJoinsSuite extends RegressionSuite {
         }
         else {
             // case 7: equality join on single column and WHERE outer expression
-
             validateTableOfLongs(client, query, new long[][]{
                 {NULL_VALUE, NULL_VALUE, 5, NULL_VALUE},
                 {NULL_VALUE, NULL_VALUE, 5, 5},
@@ -1349,8 +1354,8 @@ public class TestJoinsSuite extends RegressionSuite {
                 "ON R1.A " + joinOp + " R3.A " +
                 "ORDER BY COALESCE(R1.A, 10), R3.C LIMIT 3 OFFSET 4";
         validateTableOfLongs(client, query, new long[][]{
-            {3, 4, 3, 4L},
-            {4,5, NULL_VALUE, NULL_VALUE},
+            {3, 4, 3, 4},
+            {4, 5, NULL_VALUE, NULL_VALUE},
             {NULL_VALUE, NULL_VALUE, 5, 5}
         });
 
@@ -1800,17 +1805,10 @@ public class TestJoinsSuite extends RegressionSuite {
         validateTableOfLongs(client, query, toExpect);
     }
 
-    static public junit.framework.Test suite() {
+    public static junit.framework.Test suite() {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestJoinsSuite.class);
         VoltProjectBuilder project = new VoltProjectBuilder();
         project.addSchema(TestJoinsSuite.class.getResource("testjoins-ddl.sql"));
-//        try {
-//          project.addLiteralSchema("CREATE PROCEDURE R4_INSERT AS INSERT INTO R4 VALUES(?, ?);");
-//      }
-//        catch (IOException e) {
-//          e.printStackTrace();
-//          fail();
-//      }
 
         LocalCluster config;
 

@@ -101,7 +101,7 @@ bool SeqScanExecutor::p_init(AbstractPlanNode* abstract_node,
     }
 
     // Inline aggregation can be serial, partial or hash
-    m_aggExec = voltdb::getInlineAggregateExecutor(node);
+    m_aggExec = getInlineAggregateExecutor(node);
 
     return true;
 }

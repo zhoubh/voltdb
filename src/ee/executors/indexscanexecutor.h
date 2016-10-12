@@ -113,8 +113,6 @@ private:
 
     SortDirectionType m_sortDirection;
 
-    boost::shared_array<int> m_projectionAllTupleArrayPtr;
-
     // Inline projection
     ProjectionPlanNode* m_projectionNode;
     OptimizedProjector m_projector;

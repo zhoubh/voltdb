@@ -547,16 +547,7 @@ public class AggregatePlanNode extends AbstractPlanNode {
         }
         AbstractExpression.loadFromJSONArrayChild(m_groupByExpressions, jobj,
                                                   Members.GROUPBY_EXPRESSIONS.name(), null);
-
-        if ( ! jobj.isNull(Members.PARTIAL_GROUPBY_COLUMNS.name())) {
-            JSONArray jarray2 = jobj.getJSONArray(Members.PARTIAL_GROUPBY_COLUMNS.name());
-            int numCols = jarray2.length();
-            m_partialGroupByColumns = new ArrayList<>(numCols);
-            for (int ii = 0; ii < numCols; ++ii) {
-                m_partialGroupByColumns.add(jarray2.getInt(ii));
-            }
-        }
-
+        m_partialGroupByColumns = loadJSONIntegerArray(jobj, Members.PARTIAL_GROUPBY_COLUMNS.name());
         m_prePredicate = AbstractExpression.fromJSONChild(jobj, Members.PRE_PREDICATE.name());
         m_postPredicate = AbstractExpression.fromJSONChild(jobj, Members.POST_PREDICATE.name());
     }

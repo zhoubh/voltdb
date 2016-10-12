@@ -31,22 +31,22 @@ std::string IndexCountPlanNode::debugInfo(const std::string &spacer) const
 {
     std::ostringstream buffer;
     buffer << AbstractScanPlanNode::debugInfo(spacer)
-           << spacer << "TargetIndexName[" << m_target_index_name << "]\n"
+           << spacer << "TargetIndexName[" << m_targetIndexName << "]\n"
            << spacer << "IndexLookupType["
-           << indexLookupToString(m_lookup_type) << "]\n"
+           << indexLookupToString(m_lookupType) << "]\n"
            << spacer << "SearchKey Expressions:\n";
-    BOOST_FOREACH(auto searchkey, m_searchkey_expressions) {
-        buffer << searchkey->debug(spacer);
+    BOOST_FOREACH(auto searchKey, m_searchKeyExpressions) {
+        buffer << searchKey->debug(spacer);
     }
 
     buffer << spacer << "EndKey Expressions:\n";
-    BOOST_FOREACH(auto endkey, m_endkey_expressions) {
-        buffer << endkey->debug(spacer);
+    BOOST_FOREACH(auto endKey, m_endKeyExpressions) {
+        buffer << endKey->debug(spacer);
     }
 
     buffer << spacer << "Skip Null Expression: ";
-    if (m_skip_null_predicate != NULL) {
-        buffer << "\n" << m_skip_null_predicate->debug(spacer);
+    if (m_skipNullPredicate != NULL) {
+        buffer << "\n" << m_skipNullPredicate->debug(spacer);
     }
     else {
         buffer << "<NULL>\n";
@@ -61,28 +61,28 @@ void IndexCountPlanNode::loadFromJSONObject(PlannerDomValue obj)
     assert(getPredicate() == NULL);
 
     std::string endTypeString = obj.valueForKey("END_TYPE").asStr();
-    m_end_type = stringToIndexLookup(endTypeString);
+    m_endType = stringToIndexLookup(endTypeString);
 
     std::string lookupTypeString = obj.valueForKey("LOOKUP_TYPE").asStr();
-    m_lookup_type = stringToIndexLookup(lookupTypeString);
+    m_lookupType = stringToIndexLookup(lookupTypeString);
 
-    m_target_index_name = obj.valueForKey("TARGET_INDEX_NAME").asStr();
+    m_targetIndexName = obj.valueForKey("TARGET_INDEX_NAME").asStr();
 
-    m_searchkey_expressions.loadExpressionArrayFromJSONObject("SEARCHKEY_EXPRESSIONS", obj);
+    m_searchKeyExpressions.loadExpressionArrayFromJSONObject("SEARCHKEY_EXPRESSIONS", obj);
 #ifndef NDEBUG
-    BOOST_FOREACH(auto searchKey, m_searchkey_expressions) {
+    BOOST_FOREACH(auto searchKey, m_searchKeyExpressions) {
         assert(searchKey);
     }
 #endif
 
-    m_endkey_expressions.loadExpressionArrayFromJSONObject("ENDKEY_EXPRESSIONS", obj);
+    m_endKeyExpressions.loadExpressionArrayFromJSONObject("ENDKEY_EXPRESSIONS", obj);
 #ifndef NDEBUG
-    BOOST_FOREACH(auto endKey, m_endkey_expressions) {
+    BOOST_FOREACH(auto endKey, m_endkeyExpressions) {
         assert(endKey);
     }
 #endif
 
-    m_skip_null_predicate.reset(loadExpressionFromJSONObject("SKIP_NULL_PREDICATE", obj));
+    m_skipNullPredicate.reset(loadExpressionFromJSONObject("SKIP_NULL_PREDICATE", obj));
 }
 
-} // namespace voltdb
+}// namespace voltdb

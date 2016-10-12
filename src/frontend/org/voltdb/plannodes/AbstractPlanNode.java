@@ -1147,6 +1147,20 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         }
     }
 
+    protected static List<Integer> loadJSONIntegerArray(JSONObject jobj,
+            String memberName) throws JSONException {
+        List<Integer> result = null;
+        if ( ! jobj.isNull(memberName)) {
+            JSONArray jarray2 = jobj.getJSONArray(memberName);
+            int numCols = jarray2.length();
+            result = new ArrayList<>(numCols);
+            for (int ii = 0; ii < numCols; ++ii) {
+                result.add(jarray2.getInt(ii));
+            }
+        }
+        return result;
+    }
+
     public boolean reattachFragment(AbstractPlanNode child) {
         for (AbstractPlanNode pn : m_children) {
             if (pn.reattachFragment(child)) {

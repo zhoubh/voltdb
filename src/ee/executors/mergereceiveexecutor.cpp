@@ -200,7 +200,7 @@ bool MergeReceiveExecutor::p_init(AbstractPlanNode* abstract_node,
                                      getInlinePlanNode(PLAN_NODE_TYPE_LIMIT));
 
     // aggregate
-    m_agg_exec = voltdb::getInlineAggregateExecutor(merge_receive_node);
+    m_agg_exec = getInlineAggregateExecutor(merge_receive_node);
 
     // Create a temp table to collect tuples from multiple partitions
     TupleSchema* pre_agg_schema = (m_agg_exec != NULL) ?
