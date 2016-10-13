@@ -107,6 +107,7 @@ import org.voltdb.compiler.deploymentfile.ConsistencyType;
 import org.voltdb.compiler.deploymentfile.DeploymentType;
 import org.voltdb.compiler.deploymentfile.HeartbeatType;
 import org.voltdb.compiler.deploymentfile.PartitionDetectionType;
+import org.voltdb.compiler.deploymentfile.PartitionKFactorType;
 import org.voltdb.compiler.deploymentfile.PathsType;
 import org.voltdb.compiler.deploymentfile.SystemSettingsType;
 import org.voltdb.dtxn.InitiatorStats;
@@ -158,6 +159,7 @@ import com.google_voltpatches.common.base.Supplier;
 import com.google_voltpatches.common.base.Throwables;
 import com.google_voltpatches.common.collect.ImmutableList;
 import com.google_voltpatches.common.collect.ImmutableMap;
+import com.google_voltpatches.common.collect.Maps;
 import com.google_voltpatches.common.net.HostAndPort;
 import com.google_voltpatches.common.util.concurrent.ListenableFuture;
 import com.google_voltpatches.common.util.concurrent.ListeningExecutorService;
@@ -1613,7 +1615,16 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
             }
             int hostcount = m_clusterSettings.get().hostcount();
             int kfactor = m_catalogContext.getDeployment().getCluster().getKfactor();
-            ClusterConfig clusterConfig = new ClusterConfig(hostcount, sphMap, kfactor);
+
+          //kfactors per partitions in the deployment config
+            PartitionKFactorType pkfType = m_catalogContext.getDeployment().getPartitionKfactor();
+            Map<Integer, Integer> pkfs = Maps.newHashMap();
+            if (pkfType != null && pkfType.isEnabled()) {
+                for(PartitionKFactorType.Partition p : pkfType.getPartition()) {
+                    pkfs.put(p.getId(), p.getKfactor());
+                }
+            }
+            ClusterConfig clusterConfig = new ClusterConfig(hostcount, sphMap, kfactor, pkfs);
             if (!clusterConfig.validate()) {
                 VoltDB.crashLocalVoltDB(clusterConfig.getErrorMsg(), false, null);
             }

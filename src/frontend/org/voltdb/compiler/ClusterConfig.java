@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.json_voltpatches.JSONArray;
 import org.json_voltpatches.JSONException;
@@ -127,9 +128,15 @@ public class ClusterConfig
 
     public ClusterConfig(int hostCount, Map<Integer, Integer> sitesPerHostMap, int replicationFactor)
     {
+        this(hostCount, sitesPerHostMap, replicationFactor, null);
+    }
+
+    public ClusterConfig(int hostCount, Map<Integer, Integer> sitesPerHostMap, int replicationFactor, Map<Integer, Integer> partitionReplicationFactors)
+    {
         m_hostCount = hostCount;
         m_sitesPerHostMap = sitesPerHostMap;
         m_replicationFactor = replicationFactor;
+        m_kFactorPartitionMap = partitionReplicationFactors;
         m_errorMsg = "Config is unvalidated";
     }
 
@@ -148,6 +155,16 @@ public class ClusterConfig
             m_sitesPerHostMap.put(hostId, sph);
         }
         m_replicationFactor = topo.getInt("kfactor");
+
+        //kfactor by partition
+        m_kFactorPartitionMap = Maps.newHashMap();
+        JSONArray partitions = topo.getJSONArray("partitions");
+        for (int i = 0; i < partitions.length(); i++) {
+            JSONObject pkf = partitions.getJSONObject(i);
+            if (pkf.has("kfactor")) {
+                m_kFactorPartitionMap.put(pkf.getInt("partition_id"), pkf.getInt("kfactor"));
+            }
+        }
         m_errorMsg = "Config is unvalidated";
     }
 
@@ -174,9 +191,45 @@ public class ClusterConfig
         return totalSites;
     }
 
+    private boolean mixedKFactorEnabled() {
+        return m_kFactorPartitionMap != null && !m_kFactorPartitionMap.isEmpty();
+    }
+
+    /**
+     * get the replication factor by partition
+     * @param partitionId  The partition id
+     */
+    public int getReplicationFactorByPartition(int partitionId) {
+        if (mixedKFactorEnabled()) {
+            Integer factor = m_kFactorPartitionMap.get(partitionId);
+            if (factor != null) {
+                return factor.intValue();
+            }
+        }
+        return getReplicationFactor();
+    }
+
     public int getPartitionCount()
     {
-        return getTotalSitesCount() / (m_replicationFactor + 1);
+        if (mixedKFactorEnabled()) {
+            return m_kFactorPartitionMap.size();
+        } else {
+            return getTotalSitesCount() /(m_replicationFactor + 1);
+        }
+    }
+
+    /**
+     * get the total number of partitions
+     * @return The total partition count
+     */
+    public int getTotalPartitionCount() {
+        if (mixedKFactorEnabled()) {
+            LongAdder a = new LongAdder();
+            m_kFactorPartitionMap.values().parallelStream().forEach(a::add);
+            return (a.intValue() + m_kFactorPartitionMap.size());
+        } else {
+            return getTotalSitesCount();
+        }
     }
 
     public String getErrorMsg()
@@ -209,12 +262,18 @@ public class ClusterConfig
                                        m_replicationFactor);
             return false;
         }
-        if (getTotalSitesCount() % (m_replicationFactor + 1) > 0)
-        {
-            m_errorMsg = "The cluster has more hosts and sites per hosts than required for the " +
-                "requested k-safety value. The number of total sites must be a " +
-                "whole multiple of the number of copies of the database (k-safety + 1)";
-            return false;
+
+        if (mixedKFactorEnabled()) {
+            if (getTotalSitesCount() != getTotalPartitionCount()) {
+                m_errorMsg = String.format("The total site count (%d) in the cluster does not match the total partition count (%d).",getTotalSitesCount(), getTotalPartitionCount());
+                return false;
+            }
+        } else if (getTotalSitesCount() % (getReplicationFactor() + 1) > 0) {
+                hostLog.info(String.format("Total site count: %d, kfactor: %d", getTotalSitesCount(), getReplicationFactor()));
+                m_errorMsg = "The cluster has more hosts and sites per hosts than required for the " +
+                        "requested k-safety value. The number of total sites must be a " +
+                        "whole multiple of the number of copies of the database (k-safety + 1)";
+                return false;
         }
         m_errorMsg = "Cluster config contains no detected errors";
         return true;
@@ -286,6 +345,7 @@ public class ClusterConfig
         }
     }
 
+    @SuppressWarnings("rawtypes")
     private static class Node implements Comparable {
         Set<Partition> m_masterPartitions = new HashSet<Partition>();
         Set<Partition> m_replicaPartitions = new HashSet<Partition>();
@@ -574,6 +634,113 @@ public class ClusterConfig
     }
 
     /**
+     * assign partitions to sites
+     * @param hostIds A list of host id
+     * @param hostCount The total host count
+     * @param partitionCount The total partition count
+     * @param sitesPerHostMap  The site per host map
+     * @return  Cluster JSON topology
+     * @throws JSONException
+     */
+    JSONObject fallbackPlacementWithMixedKFactors(List<Integer> hostIds,int hostCount,int partitionCount,
+            Map<Integer, Integer> sitesPerHostMap) throws JSONException {
+
+        // build the assignment map, each entry has the lower bound of partition range as key,the host id as value.
+        TreeMap<Integer, Integer> sitesToHostId = Maps.newTreeMap();
+        int sitesCounter = 0;
+        for (Map.Entry<Integer, Integer> entry : sitesPerHostMap.entrySet()) {
+            sitesToHostId.put(sitesCounter, entry.getKey());
+            sitesCounter += entry.getValue();
+        }
+
+        HashMap<Integer, ArrayList<Integer>> partToHosts = new HashMap<>();
+        for (int i = 0; i < partitionCount; i++)
+        {
+            ArrayList<Integer> hosts = new ArrayList<Integer>();
+            partToHosts.put(i, hosts);
+        }
+
+        //sort the site-per-host-map with the maximal number of sites in front
+        Map<Integer, Integer> sitesMap = Maps.newLinkedHashMap();
+        sitesPerHostMap.entrySet().stream().sorted(Map.Entry.<Integer, Integer>comparingByValue()
+                .reversed()).forEachOrdered(x -> sitesMap.put(x.getKey(), x.getValue()));
+        int sitesPerHostArray[][] = new int[2][hostCount];
+        int index = 0;
+        for (Map.Entry<Integer, Integer> entry : sitesMap.entrySet()) {
+            sitesPerHostArray[0][index] = entry.getKey();
+            sitesPerHostArray[1][index++] = entry.getValue();
+        }
+
+        //sort the replication-factor-per-partition-map with highest kfactors in front
+        Map<Integer, Integer> replicationPerPartitionMap = Maps.newLinkedHashMap();
+        m_kFactorPartitionMap.entrySet().stream().sorted(Map.Entry.<Integer, Integer>comparingByValue()
+                .reversed()).forEachOrdered(x -> replicationPerPartitionMap.put(x.getKey(), x.getValue()));
+
+        int replicationPerPartitionArray[][] = new int[2][partitionCount];
+        index = 0;
+        for (Map.Entry<Integer, Integer> entry : replicationPerPartitionMap.entrySet()) {
+            replicationPerPartitionArray[0][index] = entry.getKey();
+            replicationPerPartitionArray[1][index++] = entry.getValue();
+        }
+
+        //assign partitions to sites
+        for (int i = 0; i < partitionCount; i++) {
+            int kfactor = replicationPerPartitionArray[1][i];
+            int partition = replicationPerPartitionArray[0][i];
+            for (int k = 0; k <= kfactor; k++) {
+                for ( int j = k; j < hostCount; j++) {
+                    int remaining = sitesPerHostArray[1][j];
+                    if (remaining-- > 0) {
+                        sitesPerHostArray[1][j] = remaining;
+                        int host = sitesPerHostArray[0][j];
+                        partToHosts.get(partition).add(host);
+                        break;
+                    }
+                }
+            }
+        }
+        for (Map.Entry<Integer, ArrayList<Integer>> e : partToHosts.entrySet()) {
+            Collections.sort(e.getValue());
+        }
+
+        JSONStringer stringer = new JSONStringer();
+        stringer.object();
+        stringer.key("hostcount").value(m_hostCount);
+        stringer.key("kfactor").value(getReplicationFactor());
+        stringer.key("host_id_to_sph").array();
+        for (Map.Entry<Integer, Integer> entry : sitesPerHostMap.entrySet()) {
+            stringer.object();
+            stringer.key("host_id").value(entry.getKey());
+            stringer.key("sites_per_host").value(entry.getValue());
+            stringer.endObject();
+        }
+        stringer.endArray();
+        stringer.key("partitions").array();
+        for (int part = 0; part < partitionCount; part++)
+        {
+            stringer.object();
+            stringer.key("partition_id").value(part);
+            int kfactor = getReplicationFactorByPartition(part);
+            int idx = part % (kfactor + 1);
+            int master = partToHosts.get(part).get(idx);
+            stringer.key("kfactor").value(kfactor);
+            stringer.key("replicas").array();
+            for (int host_pos : partToHosts.get(part)) {
+                stringer.value(host_pos);
+            }
+            stringer.endArray();
+
+            //master may not be evenly distributed
+            stringer.key("master").value(master);
+            stringer.endObject();
+        }
+        stringer.endArray();
+        stringer.endObject();
+        JSONObject topo = new JSONObject(stringer.toString());
+        hostLog.info(topo.toString());
+        return topo;
+    }
+    /**
      * Placement strategy that attempts to distribute replicas across different
      * groups and also involve multiple nodes in replication so that the socket
      * between nodes is not a bottleneck.
@@ -786,9 +953,12 @@ public class ClusterConfig
         }
 
         JSONObject topo;
-        if (Boolean.valueOf(System.getenv("VOLT_REPLICA_FALLBACK"))) {
-            topo = fallbackPlacementStrategy(Lists.newArrayList(hostGroups.keySet()),
+        if (mixedKFactorEnabled()) {
+            topo = fallbackPlacementWithMixedKFactors(Lists.newArrayList(hostGroups.keySet()),
                                              hostCount, partitionCount, sitesPerHostMap);
+        } else if (Boolean.valueOf(System.getProperty("VOLT_REPLICA_FALLBACK"))) {
+            topo = fallbackPlacementStrategy(Lists.newArrayList(hostGroups.keySet()),
+                    hostCount, partitionCount, sitesPerHostMap);
         } else {
             try {
                 topo = groupAwarePlacementStrategy(hostGroups, partitionCount, sitesPerHostMap);
@@ -807,6 +977,6 @@ public class ClusterConfig
     private final int m_hostCount;
     private final Map<Integer, Integer> m_sitesPerHostMap;
     private final int m_replicationFactor;
-
+    private Map<Integer, Integer> m_kFactorPartitionMap;
     private String m_errorMsg;
 }

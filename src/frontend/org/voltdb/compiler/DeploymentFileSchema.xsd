@@ -37,6 +37,7 @@
       <xs:element name="cluster" minOccurs="1" maxOccurs="1" type="clusterType"/>
       <xs:element name="paths" minOccurs="0" maxOccurs="1" type="pathsType" />
       <xs:element name="partition-detection" minOccurs="0" type="partitionDetectionType"/>
+      <xs:element name="partition-kfactor" minOccurs="0" maxOccurs="1" type="partitionKFactorType"/>
       <xs:element name="admin-mode" minOccurs="0" type="adminModeType"/>
       <xs:element name="heartbeat" minOccurs="0" maxOccurs="1" type="heartbeatType"/>
       <xs:element name="httpd" minOccurs="0" maxOccurs="1" type="httpdType"/>
@@ -254,7 +255,18 @@
       </xs:all>
       <xs:attribute name="enabled" type="xs:boolean" default="true"/>
    </xs:complexType>
-
+  <!-- partition kfactors -->
+ <xs:complexType name="partitionKFactorType">
+      <xs:sequence>
+            <xs:element name="partition" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                     <xs:attribute name="id" type="xs:int" use="required"/>
+                     <xs:attribute name="kfactor" type="xs:int" use="required"/>
+                 </xs:complexType>
+            </xs:element>
+       </xs:sequence>
+       <xs:attribute name="enabled" type="xs:boolean" default="false"/>
+  </xs:complexType>
   <!-- <heartbeat-config> -->
   <xs:complexType name="heartbeatType">
     <xs:attribute name="timeout" type="timeoutType" use="optional" default="90"/>

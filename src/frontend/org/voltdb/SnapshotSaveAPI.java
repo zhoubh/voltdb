@@ -17,10 +17,12 @@
 
 package org.voltdb;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
@@ -115,7 +117,27 @@ public class SnapshotSaveAPI
     {
         TRACE_LOG.trace("Creating snapshot target and handing to EEs");
         final VoltTable result = SnapshotUtil.constructNodeResultsTable();
-        final int numLocalSites = context.getCluster().getDeployment().get("deployment").getSitesperhost();
+        int numLocalSites = 0;
+        try {
+            List<String> children =  VoltDB.instance().getHostMessenger().getZK().getChildren(VoltZK.sitesPerHost, false);
+            for (String child : children) {
+                byte[] payload = VoltDB.instance().getHostMessenger().getZK().getData(
+                        ZKUtil.joinZKPath(VoltZK.sitesPerHost, child), false, new Stat());
+                int hostId = Integer.parseInt(child);
+                if (hostId == context.getHostId()) {
+                    numLocalSites =  ByteBuffer.wrap(payload).getInt();
+                    break;
+                }
+            }
+        } catch(InterruptedException | KeeperException e) {
+            SNAP_LOG.error("Exception while getting site per host from ZK", e);
+            result.addRow(context.getHostId(),hostname,"","FAILURE",CoreUtils.throwableToString(e));
+            return result;
+        }
+        if ( numLocalSites == 0) {
+            result.addRow(context.getHostId(),hostname,"","FAILURE", "Could not find the site per host");
+        }
+
         JSONObject jsData = null;
         if (data != null && !data.isEmpty()) {
             try {
