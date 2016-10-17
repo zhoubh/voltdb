@@ -662,6 +662,15 @@ public class LocalCluster implements VoltServerConfig {
             return;
         }
 
+        if (! m_hasLocalServer && isMemcheckDefined()) {
+            throw new IllegalStateException("Cannot start a local cluster in memcheck build with \"hasLocalServer\" set to false.  "
+                    + "If the JUnit process contains no server threads, "
+                    + "then there will be no way to report memory errors such that the test fails.  "
+                    + "Probably the JUnit test needs to be disabled when run in memcheck mode.  "
+                    + "If you feel it's important that there is C++ memory checking for this functionality, "
+                    + "then consider writing an EE unit test that exercises the relevant code.");
+        }
+
         // needs to be called before any call to pick a filename
         VoltDB.setDefaultTimezone();
 

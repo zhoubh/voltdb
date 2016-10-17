@@ -77,6 +77,12 @@ public class TestCollector {
 
     @Before
     public void setUp() throws Exception {
+        if (LocalCluster.isMemcheckDefined()) {
+            // This test starts no local (in-process) servers, so no
+            // point to doing memory checking.
+            return;
+        }
+
         String simpleSchema =
                 "create table blah (" +
                 "ival bigint default 0 not null, " +
@@ -109,8 +115,13 @@ public class TestCollector {
 
     @After
     public void tearDown() throws Exception {
-        client.close();
-        cluster.shutDown();
+        if (client != null) {
+            client.close();
+        }
+
+        if (cluster != null) {
+            cluster.shutDown();
+        }
     }
 
     private ZipFile collect(String voltDbRootPath, boolean skipHeapDump, int days) throws Exception {
@@ -256,6 +267,10 @@ public class TestCollector {
 
     @Test
     public void testBasicFilesAndCrash() throws Exception {
+        if (cluster == null) {
+            return;
+        }
+
         //Terrible hack, wait for config logging thread to finish
         Thread.sleep(STARTUP_DELAY);
 
@@ -331,6 +346,10 @@ public class TestCollector {
 
     @Test
     public void testJvmCrash() throws Exception {
+        if (cluster == null) {
+            return;
+        }
+
         Thread.sleep(STARTUP_DELAY);
         try {
             client.callProcedure("CrashJVM");
@@ -355,6 +374,9 @@ public class TestCollector {
 
     @Test
     public void testDaysToCollectOption() throws Exception {
+        if (cluster == null) {
+            return;
+        }
 
         createLogFiles();
 
@@ -372,6 +394,9 @@ public class TestCollector {
 
     @Test
     public void testCollectFilesonYearBoundary() throws Exception {
+        if (cluster == null) {
+            return;
+        }
 
         createLogFiles();
 
@@ -395,6 +420,9 @@ public class TestCollector {
 
     @Test
     public void testRepeatFileName() throws Exception {
+        if (cluster == null) {
+            return;
+        }
 
         createLogFiles();
 

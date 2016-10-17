@@ -45,6 +45,12 @@ public class TestAdhocCreateDropJavaProc extends AdhocDDLTestBase {
     {
         System.out.println("\n\n-----\n testBasic \n-----\n\n");
 
+        if (LocalCluster.isMemcheckDefined()) {
+            // This test starts no local (in-process) servers, so no
+            // point to doing memory checking.
+            return;
+        }
+
         String pathToCatalog = Configuration.getPathToCatalogForTest("updateclasses.jar");
         String pathToDeployment = Configuration.getPathToCatalogForTest("updateclasses.xml");
         VoltProjectBuilder builder = new VoltProjectBuilder();
@@ -164,6 +170,7 @@ public class TestAdhocCreateDropJavaProc extends AdhocDDLTestBase {
         }
         catch (Exception e) {
             e.printStackTrace();
+            fail("Caught exception: " + e);
         }
     }
 
@@ -171,6 +178,12 @@ public class TestAdhocCreateDropJavaProc extends AdhocDDLTestBase {
     public void testCreateUsingExistingImport() throws Exception
     {
         System.out.println("\n\n-----\n testCreateUsingExistingImport \n-----\n\n");
+
+        if (LocalCluster.isMemcheckDefined()) {
+            // This test starts no local (in-process) servers, so no
+            // point to doing memory checking.
+            return;
+        }
 
         String pathToCatalog = Configuration.getPathToCatalogForTest("updateclasses.jar");
         String pathToDeployment = Configuration.getPathToCatalogForTest("updateclasses.xml");
@@ -230,6 +243,7 @@ public class TestAdhocCreateDropJavaProc extends AdhocDDLTestBase {
         }
         catch (Exception e) {
             e.printStackTrace();
+            fail("Caught exception: " + e);
         }
     }
 }
