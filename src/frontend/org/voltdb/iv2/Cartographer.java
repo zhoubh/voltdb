@@ -470,7 +470,7 @@ public class Cartographer extends StatsSource
     }
 
     //Check partition replicas.
-    public synchronized boolean isClusterSafeIfNodeDies(final Set<Integer> liveHids, final int hid) {
+    public synchronized boolean isClusterSafeIfNodeDies(final Set<Integer> liveHids, final Set<Integer> hids) {
         try {
             return m_es.submit(new Callable<Boolean>() {
                 @Override
@@ -487,7 +487,7 @@ public class Cartographer extends StatsSource
                         }
                     } catch (KeeperException.NoNodeException ignore) {} // shouldn't happen
                     //Otherwise we do check replicas for host
-                    return doPartitionsHaveReplicas(hid);
+                    return doPartitionsHaveReplicas(hids);
                 }
             }).get();
         } catch (InterruptedException | ExecutionException t) {
@@ -496,7 +496,7 @@ public class Cartographer extends StatsSource
         return false;
     }
 
-    private boolean doPartitionsHaveReplicas(int hid) {
+    private boolean doPartitionsHaveReplicas(final Set<Integer> hids) {
         hostLog.debug("Cartographer: Reloading partition information.");
         List<String> partitionDirs = null;
         try {
@@ -545,13 +545,14 @@ public class Cartographer extends StatsSource
                     final String split[] = replica.split("/");
                     final long hsId = Long.valueOf(split[split.length - 1].split("_")[0]);
                     final int hostId = CoreUtils.getHostIdFromHSId(hsId);
-                    if (hostId == hid) {
+                    if (hids.contains(hostId)) {
                         hostHasReplicas = true;
+                    } else {
+                        replicaHost.add(hostId);
                     }
-                    replicaHost.add(hostId);
                 }
                 hostLog.debug("Replica Host for Partition " + pid + " " + replicaHost);
-                if (hostHasReplicas && replicaHost.size() <= 1) {
+                if (hostHasReplicas && replicaHost.isEmpty()) {
                     return false;
                 }
             } catch (InterruptedException | KeeperException | NumberFormatException e) {

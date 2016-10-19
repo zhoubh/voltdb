@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.json_voltpatches.JSONException;
 import org.json_voltpatches.JSONObject;
@@ -81,6 +82,8 @@ import org.voltdb.utils.Encoder;
 import org.voltdb.utils.MiscUtils;
 import org.voltdb.utils.VoltFile;
 
+import com.google.common.collect.Sets;
+import com.google_voltpatches.common.base.Splitter;
 import com.google_voltpatches.common.base.Throwables;
 import com.google_voltpatches.common.collect.ImmutableMap;
 import com.google_voltpatches.common.util.concurrent.ListenableFuture;
@@ -409,6 +412,9 @@ public final class InvocationDispatcher {
                     return useSnapshotCatalogToRestoreSnapshotSchema(task, handler, ccxn, user);
                 }
             }
+            else if ("@Rebalance".equals(procName)) {
+                return dispatchRebalance(task);
+            }
         }
         // If you're going to copy and paste something, CnP the pattern
         // up above.  -rtb.
@@ -625,6 +631,65 @@ public final class InvocationDispatcher {
 
     }
 
+    private ClientResponseImpl dispatchRebalance(StoredProcedureInvocation task) {
+
+       VoltTable tbl [] = new VoltTable[1];
+       tbl[0]= new VoltTable(new VoltTable.ColumnInfo( "KFACTOR", VoltType.STRING),
+                new VoltTable.ColumnInfo( "HOST", VoltType.STRING));
+
+       Set<Integer> ihids = null;
+       int kfactor = -1;
+        try {
+            JSONObject jsObj = new JSONObject(task.getParams().getParam(0).toString());
+            if (jsObj.has("kfactor")) {
+                kfactor = jsObj.getInt("kfactor");
+            }
+            if (jsObj.has("hosts")) {
+                Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+                List<String> hosts = splitter.splitToList(jsObj.getString("hosts"));
+                ihids = hosts.stream().map(Integer::parseInt).collect(Collectors.toSet());
+            }
+        } catch (JSONException e) {
+            return gracefulFailureResponse( "@Rebalance:" + e.getMessage(),task.clientHandle);
+        }
+
+        if (ihids == null) {
+            ihids = determineNodesStopped(kfactor);
+        }
+        final HostMessenger hostMessenger = VoltDB.instance().getHostMessenger();
+        Set<Integer> liveHids = hostMessenger.getLiveHostIds();
+        if (!liveHids.containsAll(ihids)) {
+            return gracefulFailureResponse("Invalid Host Ids not member of cluster: ", task.clientHandle);
+        }
+
+        if (!m_cartographer.isClusterSafeIfNodeDies(liveHids, ihids)) {
+            hostLog.info("Cannot stop the requested node. Stopping individual nodes is only allowed on a K-safe cluster."
+                    + " And all rejoin nodes should be completed.");
+            return gracefulFailureResponse(
+                    "Cannot stop the requested node. Stopping individual nodes is only allowed on a K-safe cluster."
+                  + " And all rejoin nodes should be completed.", task.clientHandle);
+        }
+
+        int hid = hostMessenger.getHostId();
+        for (int hostid : ihids) {
+            if (hid != hostid) {
+                //Send poison pill with target to kill
+                hostMessenger.sendPoisonPill("@StopNode", hostid, ForeignHost.CRASH_ME);
+            }
+        }
+        if (ihids.contains(hid)){
+            //Killing myself no pill needs to be sent
+            VoltDB.instance().halt();
+        }
+        return new ClientResponseImpl(ClientResponse.SUCCESS, tbl, "SUCCESS", task.clientHandle);
+    }
+
+    private Set<Integer> determineNodesStopped (int kfactor) {
+
+        //TO DO: determine the list of nodes to be stopped
+        return Sets.newHashSet();
+    }
+
     private ClientResponseImpl dispatchStopNode(StoredProcedureInvocation task) {
         Object params[] = task.getParams().toArray();
         if (params.length != 1 || params[0] == null) {
@@ -645,7 +710,9 @@ public final class InvocationDispatcher {
                     "Invalid Host Id or Host Id not member of cluster: " + ihid,
                     task.clientHandle);
         }
-        if (!m_cartographer.isClusterSafeIfNodeDies(liveHids, ihid)) {
+        Set<Integer> hids = Sets.newHashSet();
+        hids.add(ihid);
+        if (!m_cartographer.isClusterSafeIfNodeDies(liveHids, hids)) {
             hostLog.info("Its unsafe to shutdown node with hostId: " + ihid
                     + " Cannot stop the requested node. Stopping individual nodes is only allowed on a K-safe cluster."
                     + " And all rejoin nodes should be completed."
