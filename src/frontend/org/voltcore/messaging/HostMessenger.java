@@ -69,7 +69,6 @@ import org.voltcore.utils.ShutdownHooks;
 import org.voltcore.zk.CoreZK;
 import org.voltcore.zk.ZKUtil;
 import org.voltdb.VoltDB;
-import org.voltdb.VoltZK;
 import org.voltdb.probe.MeshProber;
 
 import com.google_voltpatches.common.base.Preconditions;
@@ -656,6 +655,11 @@ public class HostMessenger implements SocketJoiner.JoinHandler, InterfaceToMesse
              */
             final HostInfo hostInfo = new HostInfo(m_config.coordinatorIp.toString(), m_config.group);
             m_zk.create(CoreZK.hosts_host + selectedHostId, hostInfo.toBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+
+            /*
+             *  This node is used for keeping local sites count under its path individually
+             */
+            m_zk.create(CoreZK.sitesPerHost, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
         zkInitBarrier.countDown();
     }
@@ -1065,31 +1069,13 @@ public class HostMessenger implements SocketJoiner.JoinHandler, InterfaceToMesse
         return hostGroups;
     }
 
-    public int getLocalSitesCount() {
-        int sitesperhost = VoltDB.UNDEFINED;
-        try {
-            List<String> children = m_zk.getChildren(VoltZK.sitesPerHost, false);
-            for (String child : children) {
-                if (m_localHostId == Integer.parseInt(child)) {
-                    byte[] payload = m_zk.getData(
-                            ZKUtil.joinZKPath(VoltZK.sitesPerHost, child), false, new Stat());
-                    sitesperhost = ByteBuffer.wrap(payload).getInt();
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            VoltDB.crashGlobalVoltDB("Unable to get sitesperhost from Zookeeper", false, e);
-        }
-        return sitesperhost;
-    }
-
     public Map<Integer, Integer> getSitesPerHostFromZK() {
         Map<Integer, Integer> sphMap = new HashMap<>();
         try {
-            List<String> children = m_zk.getChildren(VoltZK.sitesPerHost, false);
+            List<String> children = m_zk.getChildren(CoreZK.sitesPerHost, false);
             for (String child : children) {
                 byte[] payload = m_zk.getData(
-                        ZKUtil.joinZKPath(VoltZK.sitesPerHost, child), false, new Stat());
+                        ZKUtil.joinZKPath(CoreZK.sitesPerHost, child), false, new Stat());
                 int sitesperhost = ByteBuffer.wrap(payload).getInt();
                 int hostId = Integer.parseInt(child);
                 sphMap.put(hostId, sitesperhost);
@@ -1105,7 +1091,7 @@ public class HostMessenger implements SocketJoiner.JoinHandler, InterfaceToMesse
         while (true) {
             ZKUtil.FutureWatcher fw = new ZKUtil.FutureWatcher();
             try {
-                if (m_zk.getChildren(VoltZK.sitesPerHost, fw).size() == expectedHosts) {
+                if (m_zk.getChildren(CoreZK.sitesPerHost, fw).size() == expectedHosts) {
                     break;
                 }
                 fw.get();
@@ -1116,12 +1102,7 @@ public class HostMessenger implements SocketJoiner.JoinHandler, InterfaceToMesse
     }
 
     public void registerSitesPerHostToZK(int sitesperhost) {
-        try {
-            ZKUtil.addIfMissing(m_zk, VoltZK.sitesPerHost, CreateMode.PERSISTENT, new byte[0]);
-        } catch (Exception e) {
-            VoltDB.crashLocalVoltDB("Unable to create " + VoltZK.sitesPerHost + " node to Zookeeper, dying", false, e);
-        }
-        String path = ZKUtil.joinZKPath(VoltZK.sitesPerHost, String.valueOf(m_localHostId));
+        String path = ZKUtil.joinZKPath(CoreZK.sitesPerHost, String.valueOf(m_localHostId));
         try {
             ByteBuffer b = ByteBuffer.allocate(4);
             b.putInt(sitesperhost);

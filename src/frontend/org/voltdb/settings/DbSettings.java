@@ -25,9 +25,12 @@ public class DbSettings {
 
     private final PathSettings m_paths;
     private final Supplier<ClusterSettings> m_cluster;
-    public DbSettings(Supplier<ClusterSettings> clusterSettings, PathSettings pathSettings) {
+    // TODO: Move it into ClusterSetting if we decide to expose it to user.
+    private int m_localSitesCount;
+    public DbSettings(Supplier<ClusterSettings> clusterSettings, PathSettings pathSettings, int localSitesCount) {
         m_paths = pathSettings;
         m_cluster = clusterSettings;
+        m_localSitesCount = localSitesCount;
     }
     /**
      * For testing purposes only
@@ -44,6 +47,10 @@ public class DbSettings {
 
     public PathSettings getPath() {
         return m_paths;
+    }
+
+    public int getLocalSitesCount() {
+        return m_localSitesCount;
     }
 
     @Override

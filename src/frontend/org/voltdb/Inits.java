@@ -396,7 +396,7 @@ public class Inits {
                         catalogStuff.txnId,
                         catalogStuff.uniqueId,
                         catalog,
-                        new DbSettings(m_rvdb.m_clusterSettings, m_rvdb.m_paths),
+                        new DbSettings(m_rvdb.m_clusterSettings, m_rvdb.m_paths, m_rvdb.m_catalogContext.getLocalSitesCount()),
                         catalogJarBytes,
                         catalogJarHash,
                         // Our starter catalog has set the deployment stuff, just yoink it out for now

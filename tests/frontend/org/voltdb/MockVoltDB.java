@@ -92,6 +92,7 @@ public class MockVoltDB implements VoltDBInterface
     private final Map<MailboxType, List<MailboxNodeContent>> m_mailboxMap =
             new HashMap<>();
     private boolean m_replicationActive = false;
+    static final int LOCAL_SITES_COUNT = 8;
 
     public MockVoltDB() {
         this(VoltDB.DEFAULT_PORT, VoltDB.DEFAULT_ADMIN_PORT, -1, VoltDB.DEFAULT_DR_PORT);
@@ -288,7 +289,7 @@ public class MockVoltDB implements VoltDBInterface
     public CatalogContext getCatalogContext()
     {
         long now = System.currentTimeMillis();
-        DbSettings settings = new DbSettings(ClusterSettings.create().asSupplier(), PathSettings.create());
+        DbSettings settings = new DbSettings(ClusterSettings.create().asSupplier(), PathSettings.create(), LOCAL_SITES_COUNT);
 
         m_context = new CatalogContext( now, now, m_catalog, settings, new byte[] {}, null, new byte[] {}, 0) {
             @Override

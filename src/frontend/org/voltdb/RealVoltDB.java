@@ -802,12 +802,6 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
 
             Map<Integer, String> hostGroups = null;
 
-            final int numberOfNodes = readDeploymentAndCreateStarterCatalogContext(config);
-            if (config.m_isEnterprise && m_config.m_startAction.doesRequireEmptyDirectories()
-                    && !config.m_forceVoltdbCreate) {
-                    managedPathsEmptyCheck(config);
-            }
-
             // Write local sitesPerHost to ZK
             if (config.m_sitesperhost == VoltDB.UNDEFINED) {
                 config.m_sitesperhost = readDepl.deployment.getCluster().getSitesperhost();
@@ -816,6 +810,13 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 consoleLog.info("CLI overrides the local sites count to " + config.m_sitesperhost);
             }
             m_messenger.registerSitesPerHostToZK(config.m_sitesperhost);
+
+            final int numberOfNodes = readDeploymentAndCreateStarterCatalogContext(config);
+            if (config.m_isEnterprise && m_config.m_startAction.doesRequireEmptyDirectories()
+                    && !config.m_forceVoltdbCreate) {
+                    managedPathsEmptyCheck(config);
+            }
+
 
             if (!isRejoin && !m_joining) {
                 hostGroups = m_messenger.waitForGroupJoin(numberOfNodes);
@@ -931,7 +932,7 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 if (isRejoin) {
                     m_configuredNumberOfPartitions = m_cartographer.getPartitionCount();
                     partitions = m_cartographer.getIv2PartitionsToReplace(m_configuredReplicationFactor,
-                                                                          m_messenger.getLocalSitesCount());
+                                                                          m_catalogContext.getLocalSitesCount());
                     if (partitions.size() == 0) {
                         VoltDB.crashLocalVoltDB("The VoltDB cluster already has enough nodes to satisfy " +
                                 "the requested k-safety factor of " +
@@ -2065,7 +2066,7 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                             TxnEgo.makeZero(MpInitiator.MP_INIT_PID).getTxnId(), //txnid
                             0, //timestamp
                             catalog,
-                            new DbSettings(m_clusterSettings, m_paths),
+                            new DbSettings(m_clusterSettings, m_paths, config.m_sitesperhost),
                             new byte[] {},
                             null,
                             deploymentBytes,

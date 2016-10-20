@@ -182,6 +182,10 @@ public class CatalogContext {
         return m_dbSettings.getPath();
     }
 
+    public int getLocalSitesCount() {
+        return m_dbSettings.getLocalSitesCount();
+    }
+
     public CatalogContext update(
             long txnId,
             long uniqueId,

@@ -54,7 +54,7 @@ public class TestAdHocPlans extends AdHocQueryTester {
         catalog.execute(serializedCatalog);
         DbSettings dbSettings = new DbSettings(
                 config.asClusterSettings().asSupplier(),
-                PathSettings.create(config.asPathSettingsMap()));
+                PathSettings.create(config.asPathSettingsMap()), 8);
         CatalogContext context = new CatalogContext(0, 0, catalog, dbSettings, bytes, null, new byte[] {}, 0);
         m_pt = new PlannerTool(context.cluster, context.database, context.getCatalogHash());
     }

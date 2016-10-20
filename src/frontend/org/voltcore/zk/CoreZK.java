@@ -48,6 +48,7 @@ public class CoreZK {
     // hosts since beginning of time (persistent)
     public static final String hostids = "/core/hostids";
     public static final String hostids_host = "/core/hostids/host";
+    public static final String sitesPerHost = "/core/sitesperhost";
 
     // root for rejoin nodes
     public static final String rejoin_node_blocker = "/core/rejoin_nodes_blocker";
