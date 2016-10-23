@@ -379,6 +379,14 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     @Override
     public void deliver(VoltMessage message)
     {
+        if (tmLog.isDebugEnabled()) {
+            tmLog.debug(String.format("[SpScheduler:deliver] current truncation point: %s, current max SpHandle: %s, "
+                    + "message: %s",
+                    TxnEgo.txnIdToString(m_repairLogTruncationHandle),
+                    TxnEgo.txnIdToString(m_maxScheduledTxnSpHandle),
+                    message.toString()));
+        }
+
         if (message instanceof Iv2InitiateTaskMessage) {
             handleIv2InitiateTaskMessage((Iv2InitiateTaskMessage)message);
         }
@@ -812,6 +820,10 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
 
                 if (m_outstandingTxns.get(msg.getTxnId()) == null) {
                     updateMaxScheduledTransactionSpHandle(newSpHandle);
+                    if (msg.getInitiateTask() == null) {
+                        throw new RuntimeException("First fragment task with initiate task message as NULL, "
+                                + message.toString());
+                    }
                 }
             } else {
                 newSpHandle = getMaxScheduledTxnSpHandle();
@@ -1345,6 +1357,12 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     }
 
     private void updateMaxScheduledTransactionSpHandle(long newSpHandle) {
+        if (tmLog.isDebugEnabled()) {
+            if (newSpHandle > m_maxScheduledTxnSpHandle) {
+                tmLog.debug("Updating max SpHandle point from " + TxnEgo.txnIdToString(m_maxScheduledTxnSpHandle) +
+                        "to" + TxnEgo.txnIdToString(newSpHandle));
+            }
+        }
         m_maxScheduledTxnSpHandle = Math.max(m_maxScheduledTxnSpHandle, newSpHandle);
     }
 
@@ -1361,6 +1379,11 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
     private void setRepairLogTruncationHandle(long newHandle)
     {
         if (newHandle > m_repairLogTruncationHandle) {
+            if (tmLog.isDebugEnabled()) {
+                tmLog.debug("Is leader " + m_isLeader + ", Updating truncation point from " + TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
+                        "to" + TxnEgo.txnIdToString(newHandle));
+            }
+
             m_repairLogTruncationHandle = newHandle;
 
             // We have to advance the local truncation point on the replica. It's important for
@@ -1377,7 +1400,7 @@ public class SpScheduler extends Scheduler implements SnapshotCompletionInterest
             // As far as I know, they are cases that will move truncation handle backwards.
             // These include node failures (promotion phase) and node rejoin (early rejoin phase).
             if (tmLog.isDebugEnabled()) {
-                tmLog.debug("Updating truncation point from " + TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
+                tmLog.debug("Ignore backwards updating truncation point from " + TxnEgo.txnIdToString(m_repairLogTruncationHandle) +
                         "to" + TxnEgo.txnIdToString(newHandle));
             }
         }
